@@ -54,8 +54,8 @@ class MapWindow:
         print (width, height)
 
         frame = tkinter.Frame(self.root, width=width, height=height)
-        frame.pack()
-        frame.place(width=width, height=height)
+        frame.pack(fill=tkinter.BOTH, expand=tkinter.YES)
+        # frame.place(width=width, height=height)
 
         for ri, row in enumerate(self.map.tiles):
             for ci, col in enumerate(row):

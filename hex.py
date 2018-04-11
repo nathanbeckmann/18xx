@@ -19,14 +19,14 @@ class HexWindow:
     def __init__(self, hex, row, col, radius):
         self.hex = hex
         self.x = (2 * row + (2 if col % 2 == 0 else 1)) * radius
-        self.y = (2 * col + 1) * radius
+        self.y = (3 * col + 1) * radius / 2
         self.r = radius
 
     def corner(self, s):
         s %= 6
-        a = s * math.pi / 3
-        return np.array((self.x + self.r * math.cos(a),
-                         self.y + self.r * math.sin(a)))
+        a = s * math.pi / 3 + math.pi / 6
+        return np.array((self.r + self.r * math.cos(a),
+                         self.r + self.r * math.sin(a)))
 
     def outline(self):
         return [ self.corner(i) for i in range(6) ]
@@ -63,18 +63,19 @@ class HexWindow:
         
     def draw(self, frame):
         # canvas = widgets.ResizingCanvas(frame)
-        canvas = tkinter.Canvas(frame)
+        canvas = tkinter.Canvas(frame, width=self.r * 2, height=self.r * 2)
         # canvas.pack(fill=tkinter.NONE, expand=tkinter.NO)
-        # canvas.place()
-        canvas.pack()
+        # canvas.pack()
+        print (self.x, self.y)
+        canvas.place(x=self.x, y=self.y) # , width=self.r * 2, height=self.r * 2)
         
         canvas.create_polygon(*flatten(self.outline()), fill='green', width=2, outline='white')
         
         canvas.create_line(*flatten(self.connect(0, 2)), fill='white', width=self.r / 10 + 2)
         canvas.create_line(*flatten(self.connect(4, 2)), fill='white', width=self.r / 10 + 2)
-        canvas.create_line(*flatten(self.connect(4, 0)), fill='white', width=self.r / 10 + 2)
+        # canvas.create_line(*flatten(self.connect(4, 0)), fill='white', width=self.r / 10 + 2)
         canvas.create_line(*flatten(self.connect(0, 2)), fill='black', width=self.r / 10)
         canvas.create_line(*flatten(self.connect(4, 2)), fill='black', width=self.r / 10)
-        canvas.create_line(*flatten(self.connect(4, 0)), fill='black', width=self.r / 10)
+        # canvas.create_line(*flatten(self.connect(4, 0)), fill='black', width=self.r / 10)
 
         canvas.addtag_all("all")
