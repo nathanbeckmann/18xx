@@ -43,7 +43,7 @@ import tkinter
         
 class MapWindow:
     PADDING = 10
-    HEXSIZE = 60
+    HEXSIZE = 65
     
     def __init__(self, map, hexsize=50):
         self.map = map

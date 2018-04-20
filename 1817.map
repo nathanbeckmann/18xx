@@ -1,17 +1,26 @@
 {
 "Map":
  [ [ "","","","","","","","","","","Montreal","","","","Maritime Prov." ],
-   [ "","E","Lansing","E","E","E","Toronto","E","Rochester","E","E","E","E","E" ],
-   [ "","","E","E","Detroit","E","","Buffalo","E","E","E","Albany","E","Boston" ],
-   [ "Chicago","E","E","Toledo","Cleveland","E","E","E","E","Scranton","E","E","E","E" ],
-   [ "","E","E","E","E","E","E","E","E","E","E","NYC" ],
-   [ "Off-board","Indianapolis","E","E","E","E","Pittsburgh","E","E","Philadelphia","E" ],
-   [ "","E","E","Cincinatti","E","E","E","E","E","Baltimore","E" ],
-   [ "St. Louis","Louisville","E","E","Charleston","E","E","E","E" ],
-   [ "","E","E","E","E","E","Blacksburg","E","Richmond" ],
+   [ "","E","Lansing","E","D","E","Toronto","E","Rochester","E","E","E","M","D" ],
+   [ "","","E","E","Detroit","E","","Buffalo","E","E","M","Albany","M","Boston" ],
+   [ "Chicago","E","E","Toledo","Cleveland","E","R","E","E","Scranton","E","E","D","D" ],
+   [ "","E","E","E","E","E","R","E","M","M","E","NYC" ],
+   [ "Off-board","Indianapolis","E","E","E","R","Pittsburgh","M","E","Philadelphia","E" ],
+   [ "","E","R","Cincinatti","E","R","M","M","E","Baltimore","D" ],
+   [ "St. Louis","Louisville","E","R","Charleston","M","M","M","D" ],
+   [ "","E","E","E","M","M","Blacksburg","E","Richmond" ],
    [ "","","","Atlanta","","","","Raleigh-Durham" ] ],
 "Tiles":
  { "E": { "type": "base" },
+   "R": { "type": "base", "upgrade": 10 },
+   "M": { "type": "base", "upgrade": 15 },
+   "D": { "type": "base", "upgrade": 20 },
+   "Blacksburg": { "type": "base", "label": "Blacksburg", "cities": [1], "upgrade": 15 },
+   "Scranton": { "type": "base", "label": "Scranton", "cities": [1], "upgrade": 15 },
+   "Louisville": { "type": "base", "label": "Louisville", "cities": [1], "upgrade": 10 },
+   "Cincinatti": { "type": "base", "label": "Cincinatti", "cities": [1], "upgrade": 10 },
+   "Charleston": { "type": "base", "label": "Charleston", "cities": [1], "upgrade": 10 },
+   "Toledo": { "type": "base", "label": "Toledo", "cities": [1], "upgrade": 20 },
    "Montreal": { "connections": [ [ "None", 2 ], [ "None", 3 ] ],
                  "type": "off-board",
                  "label": "Montreal",
@@ -67,6 +76,7 @@
             "type": 1,
             "label": "NYC",
             "revenue": 40,
+            "upgrade": 20,
             "cities": [1, 1] }
 }
 }

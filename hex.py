@@ -6,11 +6,12 @@ from scipy import interpolate
 from misc import *
 
 class Hex:
-    def __init__(self, type, connections=[], label="", revenue=None, cities=[], towns=0):
+    def __init__(self, type, connections=[], label="", revenue=None, upgrade=0, cities=[], towns=0):
         self.connections = connections
         self.type = type
         self.label = label
         self.revenue = revenue
+        self.upgrade = upgrade
         self.cities = cities
         self.towns = towns
 
@@ -80,6 +81,8 @@ class HexWindow:
             return "brown"
         elif type == 4:
             return "gray"
+        elif type == "off-board":
+            return "#cc8888"
         else:
             print (type)
             assert False
@@ -87,7 +90,7 @@ class HexWindow:
     def draw(self, canvas):
         if self.hex.type == None: return
 
-        if self.hex.type != "off-board":
+        if self.hex.type != "off-board" or self.hex.label != "":
             canvas.create_polygon(*flatten(self.outline()),
                                   fill=self.color(self.hex.type),
                                   width=2, outline='white')
@@ -158,10 +161,8 @@ class HexWindow:
                     
                 for c in range(citysize):
                     station = location
-                    print (c % 2, c / 2)
                     station[0] += cityrad * int(c % 2)
                     station[1] += cityrad * int(c / 2)
-                    print (station)
                     draw_circle(station, cityrad, fill="white", outline="black", width=1)
 
             elif 'town' in stop:
@@ -197,5 +198,11 @@ class HexWindow:
                                        fill='black',
                                        text = rev)
                     location += (20, 0)
+        if self.hex.upgrade != 0:
+            location += (32, 0)
+            print (self.hex.upgrade)
+            canvas.create_text(*location,
+                               fill='red',
+                               text = '$%d' % self.hex.upgrade)
 
         canvas.addtag_all("all")
