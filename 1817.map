@@ -1,15 +1,15 @@
 {
 "Map":
- [ [ "","","","","","","","","","","","","","","","","","","","","Montreal","","","","","","Maritime Prov." ],
-   [ "","","E","E","E","Lansing","E","E","E","E","E","E","Toronto","E","Rochester","E","E","E","E","E","E","E","E","E","E","E","" ],
-   [ "","","","E","E","E","E","Detroit","E","","E","E","E","E","Buffalo","E","E","E","E","E","E","E","Albany","E","E","E","Boston","" ],
-   [ "Chicago","E","E","E","E","E","E","Toledo","Cleveland","E","E","E","E","E","E","E","E","E","E","Scranton","E","E","E","E","E","E","" ],
-   [ "","E","E","E","E","E","E","E","E","E","E","E","E","E","E","E","E","E","E","E","E","E","E","E","NYC","","","" ],
-   [ "Off-board","Indianapolis","E","E","E","E","E","E","E","E","E","E","PittsburghE","E","E","E","E","E","E","E","E","Philadelphia","E","","","","" ],
-   [ "","E","E","E","Cincinatti","E","E","E","E","E","E","E","E","E","E","E","E","E","E","E","E","E","Baltimore","E","","","","" ],
-   [ "St. Louis","Louisville","E","E","E","E","Charleston","E","E","E","E","E","E","E","E","E","","","","","","","","","","","" ],
-   [ "","E","E","E","E","E","E","E","E","E","E","E","E","BlacksburgE","E","RichmondE","E","E","E","","","","","","","","","" ],
-   [ "","","","","","","Atlanta","","","","","","","Raleigh-Durham","","","","","","","","","","","","" ] ],
+ [ [ "","","","","","","","","","","Montreal","","","","Maritime Prov." ],
+   [ "","E","Lansing","E","E","E","Toronto","E","Rochester","E","E","E","E","E" ],
+   [ "","","E","E","Detroit","E","","Buffalo","E","E","E","Albany","E","Boston" ],
+   [ "Chicago","E","E","Toledo","Cleveland","E","E","E","E","Scranton","E","E","E","E" ],
+   [ "","E","E","E","E","E","E","E","E","E","E","NYC" ],
+   [ "Off-board","Indianapolis","E","E","E","E","Pittsburgh","E","E","Philadelphia","E" ],
+   [ "","E","E","Cincinatti","E","E","E","E","E","Baltimore","E" ],
+   [ "St. Louis","Louisville","E","E","Charleston","E","E","E","E" ],
+   [ "","E","E","E","E","E","Blacksburg","E","Richmond" ],
+   [ "","","","Atlanta","","","","Raleigh-Durham" ] ],
 "Tiles":
  { "E": { "type": "base" },
    "Montreal": { "connections": [ [ "None", 2 ], [ "None", 3 ] ],
@@ -35,5 +35,13 @@
    "Raleigh-Durham": { "connections": [ [ "None", 0 ], [ "None", 5 ] ],
                        "type": "off-board",
                        "label": "Raleigh-Durham",
-                       "revenue": [ 20, 30, 50, 60 ] } }
+                       "revenue": [ 20, 30, 50, 60 ] },
+   "Off-board": { "connections": [ [ 0, 1 ], [ 1, 2 ], [ 0, 2 ] ],
+                  "type": "off-board" },
+   "Toronto": { "connections": [ [ 1, "town-0" ], [ 2, "town-0" ], [ 4, "town-0" ] ],
+                "type": "off-board",
+                "revenue": [ 20, 30, 40 ],
+                "label": "Toronto",
+                "towns": 1 }                
+}
 }

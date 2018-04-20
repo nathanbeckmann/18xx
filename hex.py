@@ -6,27 +6,35 @@ from scipy import interpolate
 from misc import *
 
 class Hex:
-    def __init__(self, type, connections=[], label="", revenue=None):
+    def __init__(self, type, connections=[], label="", revenue=None, cities=0, towns=0):
         self.connections = connections
         self.type = type
         self.label = label
         self.revenue = revenue
+        self.cities = cities
+        self.towns = towns
 
+    def stops(self):
+        return self.cities + self.towns
+
+import map
 import widgets
 import tkinter
 
 class HexWindow:
     def __init__(self, hex, row, col, radius):
         self.hex = hex
-        self.x = (2 * row + (2 if col % 2 == 0 else 1)) * radius
-        self.y = (3 * col + 1) * radius / 2
+        self.x = (2 * row + (0 if col % 2 == 0 else 1)) * radius * math.cos(math.pi/6)
+        self.y = 1.5 * (col + 0.5) * radius
+        self.x += map.MapWindow.PADDING / 2
+        self.y += map.MapWindow.PADDING / 2
         self.r = radius
 
     def corner(self, s):
         s %= 6
-        a = s * math.pi / 3 + math.pi / 6
-        return np.array((self.r + self.r * math.cos(a),
-                         self.r + self.r * math.sin(a)))
+        a = s * math.pi / 3 - 3 * math.pi / 6
+        return np.array((self.x + self.r * math.cos(a),
+                         self.y + self.r * math.sin(a)))
 
     def outline(self):
         return [ self.corner(i) for i in range(6) ]
@@ -60,22 +68,106 @@ class HexWindow:
 
     def center(self):
         return (self.x, self.y)
+
+    def color(self, type):
+        if type == "base":
+            return "#cccccc"
+        elif type == 1:
+            return "yellow"
+        elif type == 2:
+            return "green"
+        elif type == 3:
+            return "brown"
+        elif type == 4:
+            return "gray"
+        else:
+            print (type)
+            assert False
         
-    def draw(self, frame):
-        # canvas = widgets.ResizingCanvas(frame)
-        canvas = tkinter.Canvas(frame, width=self.r * 2, height=self.r * 2)
-        # canvas.pack(fill=tkinter.NONE, expand=tkinter.NO)
-        # canvas.pack()
-        print (self.x, self.y)
-        canvas.place(x=self.x, y=self.y) # , width=self.r * 2, height=self.r * 2)
-        
-        canvas.create_polygon(*flatten(self.outline()), fill='green', width=2, outline='white')
-        
-        canvas.create_line(*flatten(self.connect(0, 2)), fill='white', width=self.r / 10 + 2)
-        canvas.create_line(*flatten(self.connect(4, 2)), fill='white', width=self.r / 10 + 2)
-        # canvas.create_line(*flatten(self.connect(4, 0)), fill='white', width=self.r / 10 + 2)
-        canvas.create_line(*flatten(self.connect(0, 2)), fill='black', width=self.r / 10)
-        canvas.create_line(*flatten(self.connect(4, 2)), fill='black', width=self.r / 10)
-        # canvas.create_line(*flatten(self.connect(4, 0)), fill='black', width=self.r / 10)
+    def draw(self, canvas):
+        if self.hex.type == None: return
+
+        if self.hex.type != "off-board":
+            canvas.create_polygon(*flatten(self.outline()),
+                                  fill=self.color(self.hex.type),
+                                  width=2, outline='white')
+
+        citiesToDraw = self.hex.cities
+        townsToDraw = self.hex.towns
+
+        def draw_circle(p, r, **kwargs):
+            tl = p - (r/2, r/2)
+            br = p + (r/2, r/2)
+            canvas.create_oval(*flatten([tl, br]), **kwargs)
+
+        for conn in self.hex.connections:
+            start = conn[0]
+            end = conn[-1]
+            stop = conn[1] if len(conn) > 2 else None
+
+            if start == "None":
+                # off-board locations
+                p = self.side(end)
+                n = self.normal(end)
+                line = [p, p-n/4]
+            elif isinstance(end, str):
+                # connections to towns and cities
+                # for now, assume it always goes into the hex center...
+                line = [self.side(start), self.center()]
+            else:
+                line = self.connect(start, end)
+
+            flatline = flatten(line)
+            canvas.create_line(*flatline, fill='white', width=self.r / 10 + 2)
+            canvas.create_line(*flatline, fill='black', width=self.r / 10)
+
+            if stop != None:
+                t = np.linspace(0,1,len(flatline))
+                location = (np.interp(0.5, t, flatline[:,0]),np.interp(0.5, t, flatline[:,0]))
+
+                if stop == "city":
+                    assert citiesToDraw > 0
+                    citiesToDraw -= 1
+                    draw_circle(location, self.r / 2, fill="white", outline="black", width=1)
+                elif stop == "town":
+                    assert townsToDraw > 0
+                    townsToDraw -= 1
+                    draw_circle(location, self.r / 4, fill="black", outline="white", width=1)
+
+        # unconnected cities and towns
+        stopsToDraw = citiesToDraw + townsToDraw
+        r = 3 * self.r / 2 if stopsToDraw >= 2 else 0
+        a = math.pi / 2
+
+        for c in range(citiesToDraw):
+            location = self.center() + np.array((math.cos(a), math.sin(a))) * r
+            draw_circle(location, self.r / 2, fill="white", outline="black", width=1)
+            a += math.pi / stopsToDraw
+
+        for t in range(townsToDraw):
+            location = self.center() + np.array((math.cos(a), math.sin(a))) * r
+            draw_circle(location, self.r / 4, fill="black", outline="white", width=1)
+            a += math.pi / stopsToDraw
+            
+        location = np.array(self.center()) + (0, -8)
+        if self.hex.stops() > 0: location -= (0, self.r/3 + 2)
+        if self.hex.label != "":
+            canvas.create_text(*location, fill="black",
+                               text=self.hex.label)
+            location += (0, 16)
+        if self.hex.revenue != None:
+            if isinstance(self.hex.revenue, int):
+                canvas.create_text(*location, fill="black",
+                                   text=self.hex.revenue)
+            else:
+                location -= (8 * len(self.hex.revenue), 0)
+                for level, rev in enumerate(self.hex.revenue):
+                    canvas.create_rectangle(*(location - (9,8)),
+                                            *(location + (9,8)),
+                                            fill=self.color(level+1))
+                    canvas.create_text(*location,
+                                       fill='black',
+                                       text = rev)
+                    location += (20, 0)
 
         canvas.addtag_all("all")

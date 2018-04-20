@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import math
 import json
 import hex
 
@@ -11,7 +12,6 @@ class Map:
     def load(self, filename):
         with open(filename, 'r') as f:
             obj = json.load(f)
-            print(obj)
 
         map = obj["Map"]
         self.tiles = obj["Tiles"]
@@ -19,11 +19,10 @@ class Map:
         for row in map:
             hexrow = []
             for col in row:
-                print (col)
                 if col == "":
                     h = hex.Hex(type=None)
                 elif col not in self.tiles.keys():
-                    h = hex.Hex(type="City", label=tile)
+                    h = hex.Hex(type="base", label=col, cities=1)
                 else:
                     tile = self.tiles[col]
                     h = hex.Hex(**tile)
@@ -36,29 +35,30 @@ class Map:
 import tkinter
         
 class MapWindow:
+    PADDING = 10
+    HEXSIZE = 60
+    
     def __init__(self, map, hexsize=50):
         self.map = map
-        self.hexsize = 30
 
     def run(self):
         self.root = tkinter.Tk()
         self.draw()
+        self.root.after(10000, lambda: exit(0))
         self.root.mainloop()
 
     def draw(self):
-        print (self.map.width, self.map.height)
+        width=int((self.map.width) * 2 * math.cos(math.pi/6) * self.HEXSIZE) + self.PADDING
+        height=int((self.map.height) * 1.5 * self.HEXSIZE) + self.PADDING
 
-        width=int((self.map.width + 1) * 2 * self.hexsize)
-        height=int((self.map.height + 1) * 3 * self.hexsize / 2)
+        frame = tkinter.Frame(self.root) # , width=width, height=height)
+        frame.pack(fill="both", expand=True)
+        
+        canvas = tkinter.Canvas(frame, width=width, height=height, background="#888888")
+        canvas.pack(fill="both", expand=True) # place(x=0,y=0)
 
-        print (width, height)
-
-        frame = tkinter.Frame(self.root, width=width, height=height)
-        frame.pack(fill=tkinter.BOTH, expand=tkinter.YES)
-        # frame.place(width=width, height=height)
-
-        for ri, row in enumerate(self.map.tiles):
+        for ri, row in enumerate(self.map.hexes):
             for ci, col in enumerate(row):
                 hw = hex.HexWindow(self.map.hexes[ri][ci],
-                                   ci, ri, self.hexsize)
-                hw.draw(frame)
+                                   ci, ri, self.HEXSIZE)
+                hw.draw(canvas)
