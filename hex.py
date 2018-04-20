@@ -6,7 +6,7 @@ from scipy import interpolate
 from misc import *
 
 class Hex:
-    def __init__(self, type, connections=[], label="", revenue=None, cities=0, towns=0):
+    def __init__(self, type, connections=[], label="", revenue=None, cities=[], towns=0):
         self.connections = connections
         self.type = type
         self.label = label
@@ -15,7 +15,7 @@ class Hex:
         self.towns = towns
 
     def stops(self):
-        return self.cities + self.towns
+        return len(self.cities) + self.towns
 
 import map
 import widgets
@@ -92,18 +92,24 @@ class HexWindow:
                                   fill=self.color(self.hex.type),
                                   width=2, outline='white')
 
-        citiesToDraw = self.hex.cities
-        townsToDraw = self.hex.towns
+        # compute locations of cities and towns
+        stops = {}
+        stopsToDraw = self.hex.stops()
+        r = self.r / 3 if stopsToDraw >= 2 else 0
+        a = 0
 
-        def draw_circle(p, r, **kwargs):
-            tl = p - (r/2, r/2)
-            br = p + (r/2, r/2)
-            canvas.create_oval(*flatten([tl, br]), **kwargs)
+        for c in range(len(self.hex.cities)):
+            stops['city-%d' % c] = self.center() + np.array((math.cos(a), math.sin(a))) * r
+            a += 2 * math.pi / stopsToDraw
 
+        for t in range(self.hex.towns):
+            stops['town-%d' % t] = self.center() + np.array((math.cos(a), math.sin(a))) * r
+            a += 2 * math.pi / stopsToDraw
+
+        # draw connections
         for conn in self.hex.connections:
             start = conn[0]
             end = conn[-1]
-            stop = conn[1] if len(conn) > 2 else None
 
             if start == "None":
                 # off-board locations
@@ -113,43 +119,61 @@ class HexWindow:
             elif isinstance(end, str):
                 # connections to towns and cities
                 # for now, assume it always goes into the hex center...
-                line = [self.side(start), self.center()]
+                line = [self.side(start), stops[end]]
             else:
                 line = self.connect(start, end)
+            line = np.array(line)
 
             flatline = flatten(line)
             canvas.create_line(*flatline, fill='white', width=self.r / 10 + 2)
             canvas.create_line(*flatline, fill='black', width=self.r / 10)
 
-            if stop != None:
-                t = np.linspace(0,1,len(flatline))
-                location = (np.interp(0.5, t, flatline[:,0]),np.interp(0.5, t, flatline[:,0]))
-
-                if stop == "city":
-                    assert citiesToDraw > 0
-                    citiesToDraw -= 1
-                    draw_circle(location, self.r / 2, fill="white", outline="black", width=1)
-                elif stop == "town":
-                    assert townsToDraw > 0
-                    townsToDraw -= 1
-                    draw_circle(location, self.r / 4, fill="black", outline="white", width=1)
-
         # unconnected cities and towns
-        stopsToDraw = citiesToDraw + townsToDraw
-        r = 3 * self.r / 2 if stopsToDraw >= 2 else 0
-        a = math.pi / 2
+        def draw_circle(p, r, **kwargs):
+            tl = p - (r/2, r/2)
+            br = p + (r/2, r/2)
+            canvas.create_oval(*flatten([tl, br]), **kwargs)
 
-        for c in range(citiesToDraw):
-            location = self.center() + np.array((math.cos(a), math.sin(a))) * r
-            draw_circle(location, self.r / 2, fill="white", outline="black", width=1)
-            a += math.pi / stopsToDraw
+        cityrad = self.r/2
+        townrad = self.r/4
+        
+        for stop, location in stops.items():
+            if 'city' in stop:
+                cidx = int(stop.split("-")[-1])
+                citysize = len(self.hex.cities[cidx])
+                if citysize > 1:
+                    nrows = citysize / 2
+                    ncols = min(citysize, 2)
+                    dim = np.array([ncols, nrows]) * cityrad
+                    canvas.create_rectangle(*(location-dim/2), *(location + dim/2),
+                                            fill='white', outline='black', width=1)
 
-        for t in range(townsToDraw):
-            location = self.center() + np.array((math.cos(a), math.sin(a))) * r
-            draw_circle(location, self.r / 4, fill="black", outline="white", width=1)
-            a += math.pi / stopsToDraw
-            
-        location = np.array(self.center()) + (0, -8)
+                    # move location to top-left station
+                    # 1 ->    ()    0 offset from center
+                    # 2 ->   ()()   0.5 offset ...
+                    # 3 ->  ()()()  1 offset ...
+                    # 4 -> ()()()() 1.5 offset ...
+                    location[0] -= ((ncols-1)/2) * cityrad
+                    location[1] -= ((nrows-1)/2) * cityrad
+                    
+                for c in range(citysize):
+                    station = location
+                    print (c % 2, c / 2)
+                    station[0] += cityrad * int(c % 2)
+                    station[1] += cityrad * int(c / 2)
+                    print (station)
+                    draw_circle(station, cityrad, fill="white", outline="black", width=1)
+
+            elif 'town' in stop:
+                draw_circle(location, townrad, fill="black", outline="white", width=1)
+            else:
+                print (stop)
+                assert False
+
+        # text rendering
+        location = np.array(self.center())
+        if self.hex.stops() > 0 and self.hex.revenue != None: location += (0, -self.r/4)
+        
         if self.hex.stops() > 0: location -= (0, self.r/3 + 2)
         if self.hex.label != "":
             canvas.create_text(*location, fill="black",
@@ -157,7 +181,11 @@ class HexWindow:
             location += (0, 16)
         if self.hex.revenue != None:
             if isinstance(self.hex.revenue, int):
-                canvas.create_text(*location, fill="black",
+                location += (-32, 0)
+                canvas.create_oval(*(location - (10,10)),
+                                        *(location + (10,10)),
+                                        fill='black')
+                canvas.create_text(*location, fill="white",
                                    text=self.hex.revenue)
             else:
                 location -= (8 * len(self.hex.revenue), 0)

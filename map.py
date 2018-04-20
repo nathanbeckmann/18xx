@@ -16,13 +16,20 @@ class Map:
         map = obj["Map"]
         self.tiles = obj["Tiles"]
 
+        for tile in self.tiles.values():
+            if "cities" not in tile.keys(): continue
+            newcities = []
+            for citysize in tile["cities"]:
+                newcities += [ [None] * citysize ]
+            tile["cities"] = newcities
+
         for row in map:
             hexrow = []
             for col in row:
                 if col == "":
                     h = hex.Hex(type=None)
                 elif col not in self.tiles.keys():
-                    h = hex.Hex(type="base", label=col, cities=1)
+                    h = hex.Hex(type="base", label=col, cities=[[None]])
                 else:
                     tile = self.tiles[col]
                     h = hex.Hex(**tile)
@@ -43,9 +50,14 @@ class MapWindow:
 
     def run(self):
         self.root = tkinter.Tk()
+        self.root.bind("<Key>", lambda event: self.key(event))
         self.draw()
-        self.root.after(10000, lambda: exit(0))
+        # self.root.after(10000, lambda: exit(0))
         self.root.mainloop()
+
+    def key(self, event):
+        print ('Key press: ' + repr(event.char))
+        if event.char == 'q' or event.char == 'Q': exit(0)
 
     def draw(self):
         width=int((self.map.width) * 2 * math.cos(math.pi/6) * self.HEXSIZE) + self.PADDING
