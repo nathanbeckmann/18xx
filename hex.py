@@ -6,12 +6,15 @@ from scipy import interpolate
 from misc import *
 
 class Hex:
-    def __init__(self, type, connections=[], label="", revenue=None, upgrade=0, cities=[], towns=0):
+    def __init__(self, type, connections=[],
+                 label="", revenue=None, upgradeCost=0,
+                 upgradesTo=[], cities=[], towns=0):
         self.connections = connections
         self.type = type
         self.label = label
         self.revenue = revenue
-        self.upgrade = upgrade
+        self.upgradeCost = upgradeCost
+        self.upgradesTo = [ str(x) for x in upgradesTo ]
         self.cities = cities
         self.towns = towns
 
@@ -23,12 +26,16 @@ import widgets
 import tkinter
 
 class HexWindow:
+    def hexcoords(row, col, radius):
+        x = (2 * row + (0 if col % 2 == 0 else 1)) * radius * math.sin(math.pi/3)
+        y = 1.5 * (col + 0.5) * radius
+        x += map.MapWindow.PADDING / 2
+        y += map.MapWindow.PADDING / 2
+        return x, y
+    
     def __init__(self, hex, row, col, radius):
         self.hex = hex
-        self.x = (2 * row + (0 if col % 2 == 0 else 1)) * radius * math.cos(math.pi/6)
-        self.y = 1.5 * (col + 0.5) * radius
-        self.x += map.MapWindow.PADDING / 2
-        self.y += map.MapWindow.PADDING / 2
+        self.x, self.y = HexWindow.hexcoords(row, col, radius)
         self.r = radius
 
     def corner(self, s):
@@ -198,11 +205,10 @@ class HexWindow:
                                        fill='black',
                                        text = rev)
                     location += (20, 0)
-        if self.hex.upgrade != 0:
+        if self.hex.upgradeCost != 0:
             location += (32, 0)
-            print (self.hex.upgrade)
             canvas.create_text(*location,
                                fill='red',
-                               text = '$%d' % self.hex.upgrade)
+                               text = '$%d' % self.hex.upgradeCost)
 
         canvas.addtag_all("all")

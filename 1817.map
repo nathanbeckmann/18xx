@@ -11,16 +11,17 @@
    [ "","E","E","E","M","M","Blacksburg","E","Richmond" ],
    [ "","","","Atlanta","","","","Raleigh-Durham" ] ],
 "Tiles":
- { "E": { "type": "base" },
-   "R": { "type": "base", "upgrade": 10 },
-   "M": { "type": "base", "upgrade": 15 },
-   "D": { "type": "base", "upgrade": 20 },
-   "Blacksburg": { "type": "base", "label": "Blacksburg", "cities": [1], "upgrade": 15 },
-   "Scranton": { "type": "base", "label": "Scranton", "cities": [1], "upgrade": 15 },
-   "Louisville": { "type": "base", "label": "Louisville", "cities": [1], "upgrade": 10 },
-   "Cincinatti": { "type": "base", "label": "Cincinatti", "cities": [1], "upgrade": 10 },
-   "Charleston": { "type": "base", "label": "Charleston", "cities": [1], "upgrade": 10 },
-   "Toledo": { "type": "base", "label": "Toledo", "cities": [1], "upgrade": 20 },
+ {
+   "E": { "type": "base", "upgradesTo": [7,8,9] },
+   "R": { "type": "base", "upgradeCost": 10, "upgradesTo": [7,8,9] },
+   "M": { "type": "base", "upgradeCost": 15, "upgradesTo": [7,8,9] },
+   "D": { "type": "base", "upgradeCost": 20, "upgradesTo": [7,8,9] },
+   "Blacksburg": { "type": "base", "label": "Blacksburg", "cities": [1], "upgradeCost": 15 },
+   "Scranton": { "type": "base", "label": "Scranton", "cities": [1], "upgradeCost": 15 },
+   "Louisville": { "type": "base", "label": "Louisville", "cities": [1], "upgradeCost": 10 },
+   "Cincinatti": { "type": "base", "label": "Cincinatti", "cities": [1], "upgradeCost": 10 },
+   "Charleston": { "type": "base", "label": "Charleston", "cities": [1], "upgradeCost": 10 },
+   "Toledo": { "type": "base", "label": "Toledo", "cities": [1], "upgradeCost": 20 },
    "Montreal": { "connections": [ [ "None", 2 ], [ "None", 3 ] ],
                  "type": "off-board",
                  "label": "Montreal",
@@ -76,7 +77,17 @@
             "type": 1,
             "label": "NYC",
             "revenue": 40,
-            "upgrade": 20,
-            "cities": [1, 1] }
+            "upgradeCost": 20,
+            "cities": [1, 1] },
+
+   "7": { "connections": [[0,1]],
+          "type": 1,
+          "num": 5 },
+   "8": { "connections": [[0,2]],
+          "type": 1,
+          "num": 20 },
+   "9": { "connections": [[0,3]],
+          "type": 1,
+          "num": 20 }
 }
 }
