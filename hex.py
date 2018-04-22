@@ -40,9 +40,6 @@ class Hex:
             self.connections[ci] = sorted(self.connections[ci], key=keyfn)
         self.connections = sorted(self.connections)
 
-    def equivalentConnections(self, hx):
-        return self.connections == hx.connections
-
     def __deepcopy__(self, memo):
         # do a selective, shallow copy of the hex pieces, since hexes
         # are immutable --- do NOT deepcopy the map, or it blows up
@@ -79,21 +76,64 @@ class Hex:
     def getUpgrades(self):
         upgrades = []
 
-        def upgradeKeepsConnections(hx):
-            for curr in self.connections:
-                assert len(curr) == 2
-                matched = False
-                for new in hx.connections:
-                    assert len(new) == 2
-                    if (curr[0] == new[0] and curr[1] == new[1]) or \
-                       (curr[1] == new[0] and curr[0] == new[1]):
-                        matched = True
-                        break
+        def preservesConnections(hx):
 
-                if not matched:
-                    return False
+            # if there are multiple stops or if the number of stops
+            # has reduced, we need to find a valid mapping of stops
+            # from the old tile to the new tile. the implementation is
+            # simpler assuming only two stops on a tile.
+            assert self.stops() <= 2
+            assert self.stops() >= hx.stops()
 
-            return True
+            selfstops  = [ "town-%d" % d for d in range(self.towns) ]
+            selfstops += [ "city-%d" % d for d in range(len(self.cities)) ]
+            hxstops  = [ "town-%d" % d for d in range(hx.towns) ]
+            hxstops += [ "city-%d" % d for d in range(len(hx.cities)) ]
+
+            renames = []
+            def generate(indices):
+                nonlocal renames
+                if len(indices) == len(selfstops):
+                    rename = {}
+                    for i, j in enumerate(indices):
+                        rename[selfstops[i]] = hxstops[j]
+                    renames += [ rename ]
+                else:
+                    for i in range(len(hxstops)):
+                        generate(indices + [i])
+            generate([])
+
+            def preservesConnectionsRenamed(hx, rename):
+                # under a given renaming of cities, the tile fails to
+                # preserve connections if _any_ connection fails.
+                for curr in self.connections:
+                    assert len(curr) == 2
+                    matched = False
+                    for new in hx.connections:
+                        assert len(new) == 2
+
+                        curr0 = rename[curr[0]] if curr[0] in rename.keys() else curr[0]
+                        curr1 = rename[curr[1]] if curr[1] in rename.keys() else curr[1]
+
+                        if (curr0 == new[0] and curr1 == new[1]) or \
+                           (curr1 == new[0] and curr0 == new[1]):
+                            matched = True
+                            break
+
+                    if not matched:
+                        return False
+            
+                return True
+
+            # but overall, the tile succeeds in preserving connections
+            # if _any_ renaming succeeds
+            for rename in renames:
+                if preservesConnectionsRenamed(hx, rename):
+                    return True
+            return False
+
+        def equivalentConnections(hx1, hx2):
+            return hx1.connections == hx2.connections
 
         for u in self.upgradesTo:
             rotations = []
@@ -102,9 +142,9 @@ class Hex:
                 hx.rotate(r)
 
                 valid = True
-                valid = valid and upgradeKeepsConnections(hx)
+                valid = valid and preservesConnections(hx)
                 valid = valid and self.map.numTilesAvailable(u.key) > 0
-                valid = valid and not any([ hx.equivalentConnections(x) for x in rotations ])
+                valid = valid and not any([ equivalentConnections(hx, x) for x in rotations ])
                 
                 if valid:
                     rotations += [hx]
