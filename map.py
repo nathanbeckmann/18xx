@@ -38,15 +38,23 @@ class Map:
                     newcities += [ [None] * citysize ]
                 tile["cities"] = newcities
 
-            def makeHex(type):
-                if type == "":
-                    h = hex.Hex(self, type=None)
-                elif type not in self.tiles.keys():
-                    h = hex.Hex(self, type="base", label=type, cities=[[None]])
+            def makeHex(key):
+                if key == "":
+                    # empty off-board locations
+                    h = hex.Hex(self, key="", type=None)
+                elif key not in self.tiles.keys():
+                    # special case for basic cities to make writing
+                    # map files easier...
+                    h = hex.Hex(self, key="", type="base", label=type, cities=[[None]])
                 else:
-                    tile = copy.deepcopy(self.tiles[type])
-                    if "num" in tile.keys(): del tile["num"]
-                    h = hex.Hex(self, **tile)
+                    # normally described tiles
+                    tile = copy.deepcopy(self.tiles[key])
+                    if "num" in tile.keys():
+                        self.state.tileLimits[key] = tile["num"]
+                        del tile["num"]
+                    else:
+                        self.state.tileLimits[key] = 10000000 # unlimited
+                    h = hex.Hex(self, key=key, **tile)
                 return h
 
             processedTiles = {}
@@ -114,16 +122,28 @@ class Map:
         else:
             return None
 
+    def isTileAvailable(self, key):
+        return self.state.tileLimits[key] > 0
+
     def updateHex(self, row, col, choice):
+        if not self.isTileAvailable(choice.key):
+            print ("No valid tile of type: %s remaining!" % choice.label)
+            return
+        
         # state is immutable. always copy before modifying
         self.state = copy.deepcopy(self.state)
 
         # check if the hex is an upgrade and we should track what it
         # downgraded to
         newHex = copy.deepcopy(choice)
-        if self.getHex(row,col).isUpgrade(newHex):
-            newHex.downgradesTo = self.getHex(row,col)
+        oldHex = self.getHex(row, col)
+        if oldHex.isUpgrade(newHex):
+            newHex.downgradesTo = oldHex
 
+        # decrement new tile type and increment the old
+        self.state.tileLimits[newHex.key] -= 1
+        self.state.tileLimits[oldHex.key] += 1
+        
         # finally, update the hex and log the new game state
         self.state.hexes[row][col] = newHex
         

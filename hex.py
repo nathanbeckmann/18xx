@@ -7,11 +7,12 @@ from scipy import interpolate
 from misc import *
 
 class Hex:
-    def __init__(self, map, type, connections=[],
+    def __init__(self, map, key, type, connections=[],
                  label="", revenue=None, upgradeCost=0,
                  upgradesTo=[], cities=[], towns=0,
                  rotation = 0):
 
+        self.key = key
         self.map = map
         self.connections = connections
         self.type = type
@@ -79,7 +80,8 @@ class Hex:
             for r in range(6):
                 hx = copy.deepcopy(u)
                 hx.rotate(r)
-                if upgradeKeepsConnections(hx):
+                if upgradeKeepsConnections(hx) and \
+                   self.map.isTileAvailable(u.key):
                     rotations += [hx]
             if len(rotations) > 0:
                 upgrades += [rotations]
