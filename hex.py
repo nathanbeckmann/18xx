@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import math
+import copy
 import numpy as np
 from scipy import interpolate
 from misc import *
@@ -8,18 +9,38 @@ from misc import *
 class Hex:
     def __init__(self, type, connections=[],
                  label="", revenue=None, upgradeCost=0,
-                 upgradesTo=[], cities=[], towns=0):
+                 upgradesTo=[], cities=[], towns=0,
+                 rotation = 0):
         self.connections = connections
         self.type = type
         self.label = label
         self.revenue = revenue
         self.upgradeCost = upgradeCost
-        self.upgradesTo = [ str(x) for x in upgradesTo ]
+        self.upgradesTo = upgradesTo
         self.cities = cities
         self.towns = towns
+        self.rotation = rotation
 
     def stops(self):
         return len(self.cities) + self.towns
+
+    def isValidUpgrade(self, upgrade):
+        return True
+
+    def getUpgrades(self):
+        upgrades = []
+
+        for u in self.upgradesTo:
+            rotations = []
+            for r in range(6):
+                hx = copy.deepcopy(u)
+                hx.rotation = r
+                if self.isValidUpgrade(hx):
+                    rotations += [hx]
+            if len(rotations) > 0:
+                upgrades += [rotations]
+
+        return upgrades
 
 import map
 import widgets
@@ -27,8 +48,8 @@ import tkinter
 
 class HexWindow:
     def hexcoords(row, col, radius):
-        x = (2 * row + (0 if col % 2 == 0 else 1)) * radius * math.sin(math.pi/3)
-        y = 1.5 * (col + 0.5) * radius
+        x = (2 * row + (0 if col % 2 == 0 else 1) + 1) * radius * math.sin(math.pi/3)
+        y = (1.5 * col + 1) * radius
         x += map.MapWindow.PADDING / 2
         y += map.MapWindow.PADDING / 2
         return x, y
@@ -106,7 +127,7 @@ class HexWindow:
         stops = {}
         stopsToDraw = self.hex.stops()
         r = self.r / 3 if stopsToDraw >= 2 else 0
-        a = 0
+        a = self.hex.rotation * math.pi / 3
 
         for c in range(len(self.hex.cities)):
             stops['city-%d' % c] = self.center() + np.array((math.cos(a), math.sin(a))) * r
@@ -117,9 +138,15 @@ class HexWindow:
             a += 2 * math.pi / stopsToDraw
 
         # draw connections
+        def rotate(x):
+            if isinstance(x,int):
+                return (x + self.hex.rotation) % 6
+            else:
+                return x
+        
         for conn in self.hex.connections:
-            start = conn[0]
-            end = conn[-1]
+            start = rotate(conn[0])
+            end = rotate(conn[-1])
 
             if start == "None":
                 # off-board locations
