@@ -22,7 +22,6 @@ class UpgradeWindow:
         
         frame = tkinter.Frame(self.root)
         frame.pack(fill="both", expand=True)
-        # self.bind("<Button-1>", lambda event: self.click(event))
 
         # MAX_UPGRADES_PER_ROW = 8
         # nupgrades = 0

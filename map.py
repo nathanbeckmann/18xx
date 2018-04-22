@@ -121,6 +121,7 @@ class MapWindow:
         self.root = tkinter.Tk()
         self.root.wm_title("18xx")
         self.root.bind("<Key>", lambda event: self.key(event))
+        self.root.bind("<Escape>", lambda event: exit(0))
         self.root.bind("<Left>", lambda event: self.undo())
         self.root.bind("<Right>", lambda event: self.redo())
         self.root.bind("<Down>", lambda event: self.backward())
@@ -131,6 +132,7 @@ class MapWindow:
         self.root.mainloop()
 
     def key(self, event):
+        # pass
         print ('Key press: ' + repr(event.char))
         if event.char == 'q' or event.char == 'Q': exit(0)
 
@@ -188,7 +190,6 @@ class MapWindow:
 
         if r < len(self.map.hexes) and c < len(self.map.hexes[r]):
             if self.upgradeWindow != None:
-                print("Closing window")
                 self.upgradeWindow.close()
             self.upgradeWindow = upgrade.UpgradeWindow(self, r, c)
             self.upgradeWindow.go()
