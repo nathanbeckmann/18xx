@@ -17,25 +17,34 @@ class Hex:
         self.revenue = revenue
         self.upgradeCost = upgradeCost
         self.upgradesTo = upgradesTo
+        self.downgradesTo = None # previous hex in this position
         self.cities = cities
         self.towns = towns
         self.rotation = rotation
 
+    def __deepcopy__(self, memo):
+        # just do a shallow copy once you get to an individual
+        # hex... delete this if it causes problems...
+        return copy.copy(self)
+
     def stops(self):
         return len(self.cities) + self.towns
 
-    def isValidUpgrade(self, upgrade):
-        return True
+    def isUpgrade(self, upgrade):
+        return upgrade.type in [ hx.type for hx in self.upgradesTo ]
 
     def getUpgrades(self):
         upgrades = []
+
+        def isValidUpgrade(hx):
+            return True
 
         for u in self.upgradesTo:
             rotations = []
             for r in range(6):
                 hx = copy.deepcopy(u)
                 hx.rotation = r
-                if self.isValidUpgrade(hx):
+                if isValidUpgrade(hx):
                     rotations += [hx]
             if len(rotations) > 0:
                 upgrades += [rotations]

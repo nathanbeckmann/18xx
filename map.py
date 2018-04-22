@@ -13,9 +13,10 @@ class Map:
         self.hexes = []
 
         # undo log of hexes field
-        self.history = []
-        self.undoLog = []
+        self.history = [] # append-only log
+        self.undoLog = [] # truncated upon change
         self.undoPosition = -1
+        self.historyPosition = -1
 
     def load(self, filename):
         with open(filename, 'r') as f:
@@ -97,9 +98,12 @@ class Map:
         self.undoLog += [ self.hexes ]
         self.history += [ self.hexes ]
 
-    def upgradeTo(self, row, col, choice):
+    def updateHex(self, row, col, choice):
         self.hexes = copy.deepcopy(self.hexes)
-        self.hexes[row][col] = copy.deepcopy(choice)
+        newHex = copy.deepcopy(choice)
+        if self.hexes[row][col].isUpgrade(newHex):
+            newHex.downgradesTo = self.hexes[row][col]
+        self.hexes[row][col] = newHex
         
         self.log()
 

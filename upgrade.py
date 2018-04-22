@@ -38,29 +38,25 @@ class UpgradeWindow:
             # canvas.grid(row=2 + int(nupgrades / MAX_UPGRADES_PER_ROW),
             #             column=nupgrades % MAX_UPGRADES_PER_ROW)
             # nupgrades += 1
-            canvas.grid(row=1 + r, column=c)
-            canvas.bind("<Button-1>", lambda event, hx=hx: self.upgradeTo(hx))
+            canvas.grid(row=r, column=c)
+            canvas.bind("<Button-1>", lambda event, hx=hx: self.updateHex(hx))
                 
             hw = hex.HexWindow(hx, 0, 0, self.mapWindow.HEXSIZE)
             hw.draw(canvas)
 
-        tkinter.Label(frame, text="Upgrades:").grid(row=1,column=1)
+        if self.hex.downgradesTo != None:
+            tkinter.Label(frame, text="Downgrade:", font=("", 16, "bold")).grid(row=0,column=0,columnspan=100)
+            addOption(self.hex.downgradesTo, 1, 0)
 
+        tkinter.Label(frame, text="Upgrades:", font=("", 16, "bold")).grid(row=2,column=0,columnspan=100)
         for r, rot in enumerate(self.hex.getUpgrades()):
             for c, hx in enumerate(rot):
-                addOption(hx, r, c)
-        # for i, label in enumerate(self.hex.upgradesTo):
-        #     h = self.map.tiles[label]
-        #     for r in range(6):
-        #         hx = copy.deepcopy(h)
-        #         hx.rotation = r
-        #         if self.hex.isValidUpgrade(hx):
-        #             addOption(hx, i, r)
+                addOption(hx, 3+r, c)
             
         self.root.mainloop()
 
-    def upgradeTo(self, choice):
-        self.map.upgradeTo(*self.hexCoords, choice)
+    def updateHex(self, choice):
+        self.map.updateHex(*self.hexCoords, choice)
         self.close()
 
     def close(self):
