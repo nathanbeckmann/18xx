@@ -238,7 +238,7 @@ class HexWindow:
         stops = {}
         stopsToDraw = self.hex.stops()
         r = self.r / 3 if stopsToDraw >= 2 else 0
-        a = self.hex.rotation * math.pi / 3
+        a = self.hex.rotation * math.pi / 3 - math.pi / 3
 
         for c in range(len(self.hex.cities)):
             stops['city-%d' % c] = self.center() + np.array((math.cos(a), math.sin(a))) * r
@@ -300,7 +300,7 @@ class HexWindow:
                     location[1] -= ((nrows-1)/2) * cityrad
                     
                 for c in range(citysize):
-                    station = location
+                    station = np.copy(location)
                     station[0] += cityrad * int(c % 2)
                     station[1] += cityrad * int(c / 2)
                     draw_circle(station, cityrad, fill="white", outline="black", width=1)
