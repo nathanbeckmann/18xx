@@ -143,7 +143,7 @@ class Hex:
 
                 valid = True
                 valid = valid and preservesConnections(hx)
-                valid = valid and self.map.numTilesAvailable(u.key) > 0
+                valid = valid and self.map.getNumTilesAvailable(u.key) > 0
                 valid = valid and not any([ equivalentConnections(hx, x) for x in rotations ])
                 
                 if valid:

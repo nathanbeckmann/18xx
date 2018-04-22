@@ -43,7 +43,7 @@ class UpgradeWindow:
             hw = hex.HexWindow(hx, 0, 0, self.mapWindow.HEXSIZE)
             hw.draw(canvas)
 
-            numTiles = self.map.numTilesAvailable(hx.key)
+            numTiles = self.map.getNumTilesAvailable(hx.key)
             if numTiles < 50:
                 canvas.create_text(16,16, text=("x%d" % numTiles),
                                    fill='white', justify=tkinter.LEFT)

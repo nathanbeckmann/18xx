@@ -5,6 +5,7 @@ import json
 import hex
 import copy
 import upgrade
+import solver, company
 from misc import *
 
 class Map:
@@ -137,14 +138,17 @@ class Map:
         else:
             return None
 
-    def numTilesAvailable(self, key):
+    def getPhase(self):
+        return self.state.phase
+
+    def getNumTilesAvailable(self, key):
         if key in self.state.tileLimits:
             return self.state.tileLimits[key]
         else:
             return 1000000 # unlimited
 
     def updateHex(self, row, col, choice):
-        if self.numTilesAvailable(choice.key) <= 0:
+        if self.getNumTilesAvailable(choice.key) <= 0:
             print ("No valid tile of type: %s remaining!" % choice.label)
             return
         
@@ -164,6 +168,11 @@ class Map:
 
         # finally, update the hex and log the new game state
         self.state.hexes[row][col] = newHex
+        self.state.phase = max( \
+            [x.type for row in self.state.hexes \
+             for x in row \
+             if isinstance(x.type,int) ] \
+            ) - 1
         
         self.log()
 
@@ -195,6 +204,14 @@ class MapWindow:
         # pass
         print ('Key press: ' + repr(event.char))
         if event.char == 'q' or event.char == 'Q': exit(0)
+
+        if event.char == 's': self.solve()
+
+    def solve(self):
+        hx = self.map.getHex(2,13)
+        hx.cities[0][0] = 0
+        s = solver.MapSolver(self.map)
+        s.solve(company.Company(0, [2,2,3]))
 
     def undo(self):
         self.map.undo()
@@ -244,9 +261,9 @@ class MapWindow:
         return row, col
 
     def click(self, event):
-        print ("Click at: %d, %d" % (event.x, event.y))
-
         r, c = self.pixelToHex(event.x, event.y)
+
+        print ("Click at: (%d, %d) --> (%d, %d)" % (event.x, event.y, r, c))
 
         if self.map.getHex(r, c) != None:
             if self.upgradeWindow != None: self.upgradeWindow.close()
