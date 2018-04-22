@@ -24,7 +24,7 @@
    "city-Cincinatti": { "extends": "base-city", "upgradeCost": 10 },
    "city-Charleston": { "extends": "base-city", "upgradeCost": 10 },
    "city-Toledo": { "extends": "base-city", "upgradeCost": 20 },
-   "city-Pittsburgh": { "extends": "base-city", "upgradesTo": [5,6,57,"X00"] },
+   "Pittsburgh": { "extends": "base-city", "label": "Pittsburgh", "upgradesTo": [5,6,57,"X00"] },
    
    "Montreal": { "connections": [ [ "None", 2 ], [ "None", 3 ] ],
                  "type": "off-board",
@@ -66,17 +66,17 @@
                
    "Detroit": { "connections": [ [1, "city-0"], [3, "city-0"] ],
                 "type": 1,
-                "label": "Detroit",
+                "label": "Detroit-B",
                 "revenue": 30,
                 "cities": [1] },
    "Baltimore": { "connections": [ [1, "city-0"], [3, "city-0"] ],
                   "type": 1,
-                  "label": "Baltimore",
+                  "label": "Baltimore-B",
                   "revenue": 30,
                   "cities": [1] },
    "Boston": { "connections": [ [0, "city-0"], [2, "city-0"] ],
                "type": 1,
-               "label": "Boston",
+               "label": "Boston-B",
                "revenue": 30,
                "cities": [1] },
                
@@ -163,6 +163,7 @@
             "cities": [2] },
 
    "X00": { "connections": [[1,"city-0"],[3,"city-0"],[5,"city-0"]],
+            "label": "B",
             "type": 1,
             "num": 1,
             "revenue": 30,

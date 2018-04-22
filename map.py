@@ -42,7 +42,9 @@ class Map:
             for tile in self.tiles.values():
                 if "extends" in tile.keys():
                     assert tile["extends"] in self.tiles.keys()
-                    tile.update(self.tiles[tile["extends"]])
+                    for k, v in self.tiles[tile["extends"]].items():
+                        if k not in tile.keys():
+                            tile[k] = v
                     del tile["extends"]
 
             for key, tile in self.tiles.items():
