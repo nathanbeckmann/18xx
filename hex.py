@@ -81,7 +81,7 @@ class Hex:
                 hx = copy.deepcopy(u)
                 hx.rotate(r)
                 if upgradeKeepsConnections(hx) and \
-                   self.map.isTileAvailable(u.key):
+                   self.map.numTilesAvailable(u.key) > 0:
                     rotations += [hx]
             if len(rotations) > 0:
                 upgrades += [rotations]

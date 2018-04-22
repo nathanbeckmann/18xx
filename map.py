@@ -122,11 +122,11 @@ class Map:
         else:
             return None
 
-    def isTileAvailable(self, key):
-        return self.state.tileLimits[key] > 0
+    def numTilesAvailable(self, key):
+        return self.state.tileLimits[key]
 
     def updateHex(self, row, col, choice):
-        if not self.isTileAvailable(choice.key):
+        if self.numTilesAvailable(choice.key) <= 0:
             print ("No valid tile of type: %s remaining!" % choice.label)
             return
         
