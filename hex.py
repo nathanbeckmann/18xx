@@ -25,6 +25,24 @@ class Hex:
         self.towns = towns
         self.rotation = rotation
 
+        self.canonicalizeConnections()
+
+    def canonicalizeConnections(self):
+        # canonical form for connections is that the connection
+        # list is sorted and each individual connection is sorted
+        # as well
+        #
+        # this matters to eliminate duplicates when doing upgrades
+        def keyfn(x):
+            return str(x)
+                
+        for ci in range(len(self.connections)):
+            self.connections[ci] = sorted(self.connections[ci], key=keyfn)
+        self.connections = sorted(self.connections)
+
+    def equivalentConnections(self, hx):
+        return self.connections == hx.connections
+
     def __deepcopy__(self, memo):
         # do a selective, shallow copy of the hex pieces, since hexes
         # are immutable --- do NOT deepcopy the map, or it blows up
@@ -56,6 +74,8 @@ class Hex:
         for i in range(len(self.connections)):
             self.connections[i] = [ rot(x) for x in self.connections[i] ]
 
+        self.canonicalizeConnections()
+
     def getUpgrades(self):
         upgrades = []
 
@@ -80,8 +100,13 @@ class Hex:
             for r in range(6):
                 hx = copy.deepcopy(u)
                 hx.rotate(r)
-                if upgradeKeepsConnections(hx) and \
-                   self.map.numTilesAvailable(u.key) > 0:
+
+                valid = True
+                valid = valid and upgradeKeepsConnections(hx)
+                valid = valid and self.map.numTilesAvailable(u.key) > 0
+                valid = valid and not any([ hx.equivalentConnections(x) for x in rotations ])
+                
+                if valid:
                     rotations += [hx]
             if len(rotations) > 0:
                 upgrades += [rotations]
@@ -189,10 +214,10 @@ class HexWindow:
             start = conn[0]
             end = conn[-1]
 
-            if start == "None":
+            if end == "None":
                 # off-board locations
-                p = self.side(end)
-                n = self.normal(end)
+                p = self.side(start)
+                n = self.normal(start)
                 line = [p, p-n/4]
             elif isinstance(end, str):
                 # connections to towns and cities
