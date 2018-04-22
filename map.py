@@ -257,7 +257,7 @@ class MapWindow:
         self.width=int((self.map.width) * 2 * math.cos(math.pi/6) * self.HEXSIZE) + self.PADDING
         self.height=int(((self.map.height) * 1.5 + 1) * self.HEXSIZE) + self.PADDING
 
-        self.frame = tkinter.Frame(self.root) # , width=width, height=height)
+        self.frame = tkinter.Frame(self.root, background="#605044") # , width=width, height=height)
         self.frame.pack(fill="both", expand=True)
         
         self.canvas = None
