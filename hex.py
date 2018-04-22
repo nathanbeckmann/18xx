@@ -39,18 +39,33 @@ class Hex:
     def isUpgrade(self, upgrade):
         return upgrade.type in [ hx.type for hx in self.upgradesTo ]
 
+    def rotate(self, r):
+        self.rotation += r
+        self.rotation %= 6
+        
+        def rot(x):
+            if isinstance(x,int):
+                return (x + self.rotation) % 6
+            else:
+                return x
+
+        for i in range(len(self.connections)):
+            self.connections[i] = [ rot(x) for x in self.connections[i] ]
+
     def getUpgrades(self):
         upgrades = []
 
-        def isValidUpgrade(hx):
+        def upgradeKeepsConnections(hx):
+            # for conn in self.connections:
+                
             return True
 
         for u in self.upgradesTo:
             rotations = []
             for r in range(6):
                 hx = copy.deepcopy(u)
-                hx.rotation = r
-                if isValidUpgrade(hx):
+                hx.rotate(r)
+                if upgradeKeepsConnections(hx):
                     rotations += [hx]
             if len(rotations) > 0:
                 upgrades += [rotations]
@@ -153,15 +168,10 @@ class HexWindow:
             a += 2 * math.pi / stopsToDraw
 
         # draw connections
-        def rotate(x):
-            if isinstance(x,int):
-                return (x + self.hex.rotation) % 6
-            else:
-                return x
         
         for conn in self.hex.connections:
-            start = rotate(conn[0])
-            end = rotate(conn[-1])
+            start = conn[0]
+            end = conn[-1]
 
             if start == "None":
                 # off-board locations
