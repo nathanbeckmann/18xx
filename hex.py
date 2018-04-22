@@ -254,7 +254,7 @@ class HexWindow:
         if self.hex.label != "":
             canvas.create_text(*location, fill="black",
                                text=self.hex.label)
-            location += (0, 16)
+        location += (0, 16)
         if self.hex.revenue != None:
             if isinstance(self.hex.revenue, int):
                 location += (-32, 0)
