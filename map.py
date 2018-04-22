@@ -59,22 +59,23 @@ class Map:
                 elif key not in self.tiles.keys():
                     # 1st special case for basic cities to make
                     # writing map files easier...
-                    h = hex.Hex(self, key="base-city", label=key, **self.tiles["base-city"])
-                elif "city-" == key[:5]:
+                    h = hex.Hex(self, key=key, label=key, **self.tiles["base-city"])
+                elif "label:" == key[:6]:
                     # 2nd special case for basic cities to make
                     # writing map files easier...
-                    h = hex.Hex(self, key=key, label=key[6:], **self.tiles["base-city"])
+                    print (key, self.tiles[key])
+                    h = hex.Hex(self, key=key[6:], label=key[6:], **self.tiles[key])
+                    print (h.key, h.label, h.upgradeCost)
                 else:
                     # normally described tiles
-                    tile = copy.deepcopy(self.tiles[key])
-                    
-                    h = hex.Hex(self, key=key, **tile)
+                    h = hex.Hex(self, key=key, **self.tiles[key])
                 return h
 
             processedTiles = {}
             for key in keys:
                 if key in processedTiles.keys(): continue
-                processedTiles[key] = makeHex(key)
+                hx = makeHex(key)
+                processedTiles[hx.key] = hx
             self.tiles = processedTiles
 
             for t in self.tiles.values():
@@ -259,18 +260,16 @@ class MapWindow:
         self.frame = tkinter.Frame(self.root) # , width=width, height=height)
         self.frame.pack(fill="both", expand=True)
         
-        self.canvas = tkinter.Canvas(self.frame,
-                                     width=self.width, height=self.height,
-                                     background="#888888")
+        self.canvas = None
         self.redraw()
         # self.canvas.pack(fill="both", expand=True) # place(x=0,y=0)
 
     def redraw(self):
-        self.canvas.destroy()
+        if self.canvas: self.canvas.destroy()
 
         self.canvas = tkinter.Canvas(self.frame,
                                      width=self.width, height=self.height,
-                                     background="#888888")
+                                     background="#605044")
         self.canvas.pack(fill="both", expand=True) # place(x=0,y=0)
 
         for ri, ci, hx in self.map.getHexes():

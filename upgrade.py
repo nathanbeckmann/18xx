@@ -15,7 +15,7 @@ class UpgradeWindow:
 
     def go(self):
         self.root = tkinter.Toplevel(self.mapWindow.frame)
-        self.root.wm_title("Upgrade %s" % self.hex.label)
+        self.root.wm_title("Modify hex: %s" % self.hex.label)
         self.root.protocol("WM_DELETE_WINDOW", lambda: self.close())
         self.root.bind("<Key>", lambda event: self.close() if event.char == 'q' else None)
         # self.root.attributes("-topmost", True)

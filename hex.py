@@ -245,7 +245,7 @@ class HexWindow:
                 cidx = int(stop.split("-")[-1])
                 citysize = len(self.hex.cities[cidx])
                 if citysize > 1:
-                    nrows = citysize / 2
+                    nrows = math.ceil(citysize / 2)
                     ncols = min(citysize, 2)
                     dim = np.array([ncols, nrows]) * cityrad
                     canvas.create_rectangle(*(location-dim/2), *(location + dim/2),
