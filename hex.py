@@ -59,8 +59,19 @@ class Hex:
         upgrades = []
 
         def upgradeKeepsConnections(hx):
-            # for conn in self.connections:
-                
+            for curr in self.connections:
+                assert len(curr) == 2
+                matched = False
+                for new in hx.connections:
+                    assert len(new) == 2
+                    if (conn[0] == new[0] and conn[1] == new[1]) \
+                       (conn[1] == new[0] and conn[0] == new[1]):
+                        matched = True
+                        break
+
+                if not matched:
+                    return False
+
             return True
 
         for u in self.upgradesTo:
