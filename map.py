@@ -79,10 +79,21 @@ class Map:
         self.hexes = self.undoLog[self.undoPosition]
         print("Redo! @", self.undoPosition)
 
+    def backward(self):
+        self.historyPosition = max(-len(self.history), self.historyPosition - 1)
+        self.hexes = self.history[self.historyPosition]
+        print("Backwards! @", self.historyPosition)
+
+    def forward(self):
+        self.historyPosition = min(-1, self.historyPosition + 1)
+        self.hexes = self.history[self.historyPosition]
+        print("Forwards! @", self.historyPosition)
+        
     def log(self):
         if self.undoPosition < -1:
             self.undoLog = self.undoLog[:self.undoPosition+1]
         self.undoPosition = -1
+        self.historyPosition = -1
         self.undoLog += [ self.hexes ]
         self.history += [ self.hexes ]
 
@@ -108,6 +119,8 @@ class MapWindow:
         self.root.bind("<Key>", lambda event: self.key(event))
         self.root.bind("<Left>", lambda event: self.undo())
         self.root.bind("<Right>", lambda event: self.redo())
+        self.root.bind("<Down>", lambda event: self.backward())
+        self.root.bind("<Up>", lambda event: self.forward())
         self.root.bind("<Button-1>", lambda event: self.click(event))
         self.draw()
         # self.root.after(10000, lambda: exit(0))
@@ -123,6 +136,14 @@ class MapWindow:
         
     def redo(self):
         self.map.redo()
+        self.redraw()
+
+    def backward(self):
+        self.map.backward()
+        self.redraw()
+        
+    def forward(self):
+        self.map.forward()
         self.redraw()
 
     COS60 = math.cos(math.pi/3)

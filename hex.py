@@ -91,7 +91,7 @@ class HexWindow:
         points = np.array([ pp0, p0, p1, pp1 ])
 
         tck,u     = interpolate.splprep(points.T, s = 0, k = 3)
-        xnew,ynew = interpolate.splev(np.linspace(0.05, 0.95, 100), tck, der = 0)
+        xnew,ynew = interpolate.splev(np.linspace(0.05, 0.95, 20), tck, der = 0)
 
         return np.array([xnew, ynew]).T
 
