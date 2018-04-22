@@ -45,7 +45,7 @@ class Map:
                 elif key not in self.tiles.keys():
                     # special case for basic cities to make writing
                     # map files easier...
-                    h = hex.Hex(self, key="", type="base", label=type, cities=[[None]])
+                    h = hex.Hex(self, key="", type="base", label=key, cities=[[None]])
                 else:
                     # normally described tiles
                     tile = copy.deepcopy(self.tiles[key])
