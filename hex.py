@@ -23,9 +23,15 @@ class Hex:
         self.rotation = rotation
 
     def __deepcopy__(self, memo):
-        # just do a shallow copy once you get to an individual
-        # hex... delete this if it causes problems...
-        return copy.copy(self)
+        # do a selective, shallow copy of the hex pieces, since hexes
+        # are immutable
+        newHex = copy.copy(self)
+        newHex.connections = copy.deepcopy(self.connections, memo)
+        newHex.revenue = copy.deepcopy(self.revenue, memo)
+        # newHex.upgradesTo = copy.deepcopy(self.upgradesTo)
+        # newHex.downgradesTo = copy.deepcopy(self.downgradesTo)
+        newHex.cities = copy.deepcopy(self.cities, memo)
+        return newHex
 
     def stops(self):
         return len(self.cities) + self.towns
