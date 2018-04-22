@@ -35,13 +35,13 @@ class Map:
 
             def makeHex(type):
                 if type == "":
-                    h = hex.Hex(type=None)
+                    h = hex.Hex(self, type=None)
                 elif type not in self.tiles.keys():
-                    h = hex.Hex(type="base", label=type, cities=[[None]])
+                    h = hex.Hex(self, type="base", label=type, cities=[[None]])
                 else:
                     tile = copy.deepcopy(self.tiles[type])
                     if "num" in tile.keys(): del tile["num"]
-                    h = hex.Hex(**tile)
+                    h = hex.Hex(self, **tile)
                 return h
 
             processedTiles = {}

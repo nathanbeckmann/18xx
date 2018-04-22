@@ -7,10 +7,12 @@ from scipy import interpolate
 from misc import *
 
 class Hex:
-    def __init__(self, type, connections=[],
+    def __init__(self, map, type, connections=[],
                  label="", revenue=None, upgradeCost=0,
                  upgradesTo=[], cities=[], towns=0,
                  rotation = 0):
+
+        self.map = map
         self.connections = connections
         self.type = type
         self.label = label
@@ -24,7 +26,8 @@ class Hex:
 
     def __deepcopy__(self, memo):
         # do a selective, shallow copy of the hex pieces, since hexes
-        # are immutable
+        # are immutable --- do NOT deepcopy the map, or it blows up
+        # memory!
         newHex = copy.copy(self)
         newHex.connections = copy.deepcopy(self.connections, memo)
         newHex.revenue = copy.deepcopy(self.revenue, memo)
