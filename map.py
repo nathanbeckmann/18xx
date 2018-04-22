@@ -39,6 +39,17 @@ class Map:
                     newcities += [ [None] * citysize ]
                 tile["cities"] = newcities
 
+            for tile in self.tiles.values():
+                if "extends" in tile.keys():
+                    assert tile["extends"] in self.tiles.keys()
+                    tile.update(self.tiles[tile["extends"]])
+                    del tile["extends"]
+
+            for key, tile in self.tiles.items():
+                if "num" in tile.keys():
+                    self.state.tileLimits[key] = tile["num"]
+                    del tile["num"]
+
             def makeHex(key):
                 if key == "":
                     # empty off-board locations
@@ -46,13 +57,11 @@ class Map:
                 elif key not in self.tiles.keys():
                     # special case for basic cities to make writing
                     # map files easier...
-                    h = hex.Hex(self, key="", type="base", label=key, cities=[[None]])
+                    h = hex.Hex(self, key="base-city", label=key, **self.tiles["base-city"])
                 else:
                     # normally described tiles
                     tile = copy.deepcopy(self.tiles[key])
-                    if "num" in tile.keys():
-                        self.state.tileLimits[key] = tile["num"]
-                        del tile["num"]
+                    
                     h = hex.Hex(self, key=key, **tile)
                 return h
 
