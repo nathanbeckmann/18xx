@@ -9,9 +9,10 @@ from misc import *
 
 class Map:
     class State:
-        hexes = []
-        phase = 0
-        tileLimits = {}
+        def __init__(self):
+            self.hexes = []
+            self.phase = 0
+            self.tileLimits = {}
     
     def __init__(self):
         self.tiles = {}
