@@ -8,9 +8,14 @@ import upgrade
 from misc import *
 
 class Map:
+    class State:
+        hexes = []
+        phase = 0
+        tileLimits = {}
+    
     def __init__(self):
         self.tiles = {}
-        self.hexes = []
+        self.state = self.State()
 
         # undo log of hexes field
         self.history = [] # append-only log
@@ -62,32 +67,32 @@ class Map:
             hexrow = []
             for col in row:
                 hexrow.append(copy.deepcopy(self.tiles[col]))
-            self.hexes.append(hexrow)
+            self.state.hexes.append(hexrow)
 
-        self.height = len(self.hexes)
-        self.width = max([ len(row) for row in self.hexes ])
+        self.height = len(self.state.hexes)
+        self.width = max([ len(row) for row in self.state.hexes ])
 
-        self.history = [ self.hexes ]
-        self.undoLog = [ self.hexes ]
+        self.history = [ self.state ]
+        self.undoLog = [ self.state ]
 
     def undo(self):
         self.undoPosition = max(-len(self.undoLog), self.undoPosition - 1)
-        self.hexes = self.undoLog[self.undoPosition]
+        self.state = self.undoLog[self.undoPosition]
         print("Undo! @", self.undoPosition)
 
     def redo(self):
         self.undoPosition = min(-1, self.undoPosition + 1)
-        self.hexes = self.undoLog[self.undoPosition]
+        self.state = self.undoLog[self.undoPosition]
         print("Redo! @", self.undoPosition)
 
     def backward(self):
         self.historyPosition = max(-len(self.history), self.historyPosition - 1)
-        self.hexes = self.history[self.historyPosition]
+        self.state = self.history[self.historyPosition]
         print("Backwards! @", self.historyPosition)
 
     def forward(self):
         self.historyPosition = min(-1, self.historyPosition + 1)
-        self.hexes = self.history[self.historyPosition]
+        self.state = self.history[self.historyPosition]
         print("Forwards! @", self.historyPosition)
         
     def log(self):
@@ -95,15 +100,32 @@ class Map:
             self.undoLog = self.undoLog[:self.undoPosition+1]
         self.undoPosition = -1
         self.historyPosition = -1
-        self.undoLog += [ self.hexes ]
-        self.history += [ self.hexes ]
+        self.undoLog += [ self.state ]
+        self.history += [ self.state ]
+
+    def getHexes(self):
+        return [ (ri, ci, self.getHex(ri, ci)) \
+                 for ri in range(len(self.state.hexes)) \
+                 for ci in range(len(self.state.hexes[ri])) ]
+
+    def getHex(self, row, col):
+        if row < len(self.state.hexes) and col < len(self.state.hexes[row]):
+            return self.state.hexes[row][col]
+        else:
+            return None
 
     def updateHex(self, row, col, choice):
-        self.hexes = copy.deepcopy(self.hexes)
+        # state is immutable. always copy before modifying
+        self.state = copy.deepcopy(self.state)
+
+        # check if the hex is an upgrade and we should track what it
+        # downgraded to
         newHex = copy.deepcopy(choice)
-        if self.hexes[row][col].isUpgrade(newHex):
-            newHex.downgradesTo = self.hexes[row][col]
-        self.hexes[row][col] = newHex
+        if self.getHex(row,col).isUpgrade(newHex):
+            newHex.downgradesTo = self.getHex(row,col)
+
+        # finally, update the hex and log the new game state
+        self.state.hexes[row][col] = newHex
         
         self.log()
 
@@ -188,9 +210,8 @@ class MapWindow:
 
         r, c = self.pixelToHex(event.x, event.y)
 
-        if r < len(self.map.hexes) and c < len(self.map.hexes[r]):
-            if self.upgradeWindow != None:
-                self.upgradeWindow.close()
+        if self.map.getHex(r, c) != None:
+            if self.upgradeWindow != None: self.upgradeWindow.close()
             self.upgradeWindow = upgrade.UpgradeWindow(self, r, c)
             self.upgradeWindow.go()
 
@@ -215,8 +236,6 @@ class MapWindow:
                                      background="#888888")
         self.canvas.pack(fill="both", expand=True) # place(x=0,y=0)
 
-        for ri, row in enumerate(self.map.hexes):
-            for ci, col in enumerate(row):
-                hw = hex.HexWindow(self.map.hexes[ri][ci],
-                                   ci, ri, self.HEXSIZE)
-                hw.draw(self.canvas)
+        for ri, ci, hx in self.map.getHexes():
+            hw = hex.HexWindow(hx, ci, ri, self.HEXSIZE)
+            hw.draw(self.canvas)

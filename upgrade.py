@@ -11,7 +11,7 @@ class UpgradeWindow:
         self.hexCoords = (r,c)
         self.mapWindow = mapWindow
         self.map = self.mapWindow.map
-        self.hex = self.map.hexes[r][c]
+        self.hex = self.map.getHex(r, c)
 
     def go(self):
         self.root = tkinter.Toplevel(self.mapWindow.frame)
