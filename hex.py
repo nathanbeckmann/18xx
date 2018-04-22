@@ -65,8 +65,8 @@ class Hex:
                 matched = False
                 for new in hx.connections:
                     assert len(new) == 2
-                    if (conn[0] == new[0] and conn[1] == new[1]) \
-                       (conn[1] == new[0] and conn[0] == new[1]):
+                    if (curr[0] == new[0] and curr[1] == new[1]) or \
+                       (curr[1] == new[0] and curr[0] == new[1]):
                         matched = True
                         break
 
