@@ -53,8 +53,6 @@ class Map:
                     if "num" in tile.keys():
                         self.state.tileLimits[key] = tile["num"]
                         del tile["num"]
-                    else:
-                        self.state.tileLimits[key] = 10000000 # unlimited
                     h = hex.Hex(self, key=key, **tile)
                 return h
 
@@ -124,14 +122,17 @@ class Map:
             return None
 
     def numTilesAvailable(self, key):
-        return self.state.tileLimits[key]
+        if key in self.state.tileLimits:
+            return self.state.tileLimits[key]
+        else:
+            return 1000000 # unlimited
 
     def updateHex(self, row, col, choice):
         if self.numTilesAvailable(choice.key) <= 0:
             print ("No valid tile of type: %s remaining!" % choice.label)
             return
         
-        # state is immutable. always copy before modifying
+        # map state is immutable. always copy before modifying
         self.state = copy.deepcopy(self.state)
 
         # check if the hex is an upgrade and we should track what it
@@ -142,9 +143,9 @@ class Map:
             newHex.downgradesTo = oldHex
 
         # decrement new tile type and increment the old
-        self.state.tileLimits[newHex.key] -= 1
-        self.state.tileLimits[oldHex.key] += 1
-        
+        if newHex.key in self.state.tileLimits.keys(): self.state.tileLimits[newHex.key] -= 1
+        if oldHex.key in self.state.tileLimits.keys(): self.state.tileLimits[oldHex.key] += 1
+
         # finally, update the hex and log the new game state
         self.state.hexes[row][col] = newHex
         
