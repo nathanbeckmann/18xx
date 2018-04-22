@@ -55,9 +55,13 @@ class Map:
                     # empty off-board locations
                     h = hex.Hex(self, key="", type=None)
                 elif key not in self.tiles.keys():
-                    # special case for basic cities to make writing
-                    # map files easier...
+                    # 1st special case for basic cities to make
+                    # writing map files easier...
                     h = hex.Hex(self, key="base-city", label=key, **self.tiles["base-city"])
+                elif "city-" == key[:5]:
+                    # 2nd special case for basic cities to make
+                    # writing map files easier...
+                    h = hex.Hex(self, key=key, label=key[6:], **self.tiles["base-city"])
                 else:
                     # normally described tiles
                     tile = copy.deepcopy(self.tiles[key])
