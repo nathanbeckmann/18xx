@@ -42,43 +42,6 @@ class MapSolver:
 
         def __repr__(self):
             return "rev: %s, dist: %s, stop: %s, available: %s" % (self.revenue, self.distance, self.stop, self.available)
-            
-    # class Node:
-    #     def __init__(self, loc, revenue, distance):
-    #         self.loc = tuple(loc)
-    #         self.revenue = revenue
-    #         self.distance = distance
-    #         self.available = [True]
-
-    #     def __repr__(self):
-    #         return "(%s, %s, %s, %s)" % (self.loc, self.available, self.revenue, self.distance)
-
-    #     @staticmethod
-    #     def mirror(srcnode):
-    #         src = srcnode.loc
-    #         assert isinstance(src[2], int)
-            
-    #         # compute the facing hexside from the destination's
-    #         # perspective
-    #         delta = {
-    #             0: (-1, 1),
-    #             1: (0, 1),
-    #             2: (1, 1),
-    #             3: (1, 0),
-    #             4: (0, -1),
-    #             5: (-1, 0)
-    #         }[src[2]]
-    #         dst = [src[0] + delta[0], src[1] + delta[1], src[2]]
-    #         if delta[0] != 0 and src[0] % 2 == 0: dst[1] -= 1
-
-    #         # the hexside we connect to is mirrored from the
-    #         # perspective of the destination
-    #         dst[2] += 3
-    #         dst[2] %= 6
-
-    #         dstnode = MapSolver.Node(dst, srcnode.revenue, srcnode.distance)
-    #         dstnode.available = srcnode.available
-    #         return dstnode
     
     def buildGraph(self, startingCities):
         graph = MapSolver.Graph()
@@ -199,26 +162,6 @@ class MapSolver:
             else:
                 newvertices[loc] = graph.vertices[loc]
         graph.vertices = newvertices
-
-        # # allocate shared 'available' boolean values for edges in each
-        # # direction
-        # for src, dsts in nodes.items():
-        #     for dst in dsts:
-        #         print (src, dst.loc)
-        #         if dst.available == None:
-        #             dst.available = [True]
-        #             # find the corresponding edge pointing in the
-        #             # other direction
-        #             for src2 in nodes[dst.loc]:
-        #                 if src2.loc == src:
-        #                     print ("Matched:", src2, dst)
-        #                     src2.available = dst.available
-
-        # # de-ref 'pointers' to speed things up?
-        # for src, dsts in nodes.items():
-        #     for di, dst in enumerate(dsts):
-        #         assert dst in nodes.keys()
-        #         dsts[di] = nodes[dst]
 
         return graph
 
@@ -352,51 +295,6 @@ class MapSolver:
 
         # self.recursionDepth += 1
         return bestRoutes, bestRevenues
-
-    # def findBestRouteFromCity(train, routes, city):
-
-    #     def explore(stopsRemaining, route, revenue):
-    #         if stopsRemaining == 0: return route, revenue
-
-    #         if not isRouteValid(route):
-    #             return route, -1
-
-    #         r,c,src = route[-1]
-    #         hx = self.map.getHex(r,c)
-
-    #         bestRoute = route
-    #         bestRevenue = revenue
-
-    #         for step in hx.connectsTo[src]:
-    #             # where does this dst take us?
-    #             if isinstance(step,int):
-    #                 delta = {
-    #                     0: (-1, 1),
-    #                     1: (0, 1),
-    #                     2: (1, 1),
-    #                     3: (1, 0),
-    #                     4: (0, -1),
-    #                     5: (-1, 0)
-    #                 }[step]
-    #                 dst = (r + delta[0], c + delta[1])
-    #             else:
-    #                 # another location in the same tile
-    #                 dst = (r, c)
-
-    #             dstStopsRemaining = self.getStopsRemaining(src, step, dst, stopsRemaining)
-    #             stepRevenue = self.getRevenue(src, step, dst)
-                    
-    #             dstRoute, dstRevenue = explore(dstStopsRemaining,
-    #                                            route + [ (*dst, step) ],
-    #                                            revenue + stepRevenue)
-
-    #             if dstRevenue > bestRevenue:
-    #                 bestRevenue = dstRevenue
-    #                 bestRoute = dstRoute
-
-    #         return bestRoute, bestRevenue
-
-    #     return explore(train - 1, [city])
 
     def isValidRoute(self, route):
         counts = collections.Counter(route)
