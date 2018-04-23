@@ -9,21 +9,23 @@
 import copy
 import company
 import collections
+import sortedcontainers
 
 class MapSolver:
     def __init__(self, map):
         self.map = map
         self.recursionDepth = 0
+        self.memoize = {}
+        self.explorations = 0
 
-    def getStartingCities(self, company):
-        startingCities = []
+    def findStartingCities(self, company):
+        self.startingCities = []
         
         for r, c, hx in self.map.getHexes():
             for ci, city in enumerate(hx.cities):
                 if company.id in city:
-                    startingCities.append( (r,c,"city-%d" % ci) )
-        print ("Starting cities for company %s: %s" % (company.id, startingCities))
-        return startingCities
+                    self.startingCities.append( (r,c,"city-%d" % ci) )
+        print ("Starting cities for company %s: %s" % (company.id, self.startingCities))
 
     # build up a graph representation of the map so we can add and
     # remove edges during exploration
@@ -42,17 +44,44 @@ class MapSolver:
 
         def __repr__(self):
             return "rev: %s, dist: %s, stop: %s, available: %s" % (self.revenue, self.distance, self.stop, self.available)
+
+    @staticmethod
+    def isHexside(loc):
+        return isinstance(loc[2], int)
     
-    def buildGraph(self, startingCities):
-        graph = MapSolver.Graph()
+    # hexsides are really a single location; update them in the
+    # vertex dictionary to use the same object
+    @staticmethod
+    def canonicalize(loc):
+        # always use hexside 0,1,2 so there is a common name for
+        # each side of a hexside
+        if MapSolver.isHexside(loc):
+            delta = {
+                0: (0, 0, 0),
+                1: (0, 0, 1),
+                2: (0, 0, 2),
+                3: (1, 0, 0),
+                4: (0, -1, 1),
+                5: (-1, 0, 2)
+                }[loc[2]]
+            res = [loc[0] + delta[0], loc[1] + delta[1], delta[2]]
+            if delta[0] != 0 and loc[0] % 2 == 0: res[1] -= 1
+            return tuple(res)
+        else:
+            return loc
+
+    def buildGraph(self):
+        self.graph = MapSolver.Graph()
 
         def getDistance(loc):
             # count cities and towns
-            return 1 if isinstance(loc[2], str) else 0
+            return 0 if MapSolver.isHexside(loc) else 1
 
         def getRevenue(loc):
             # count cities and towns
-            if isinstance(loc[2], str):
+            if MapSolver.isHexside(loc):
+                return 0
+            else:
                 rev = self.map.getHex(loc[0], loc[1]).revenue
                 if isinstance(rev, int):
                     return rev
@@ -60,11 +89,9 @@ class MapSolver:
                     return 0
                 else:
                     return rev[self.map.getPhase()]
-            else:
-                return 0
 
         def getStop(loc):
-            return 1 if isinstance(loc[2], str) else 0
+            return 0 if MapSolver.isHexside(loc) else 1
 
         def step(src):
             if isinstance(src[2], int):
@@ -95,11 +122,11 @@ class MapSolver:
             hx = self.map.getHex(r,c)
             assert hx != None
 
-            if src not in graph.vertices.keys():
-                graph.vertices[src] = MapSolver.Vertex(getRevenue(src),
+            if src not in self.graph.vertices.keys():
+                self.graph.vertices[src] = MapSolver.Vertex(getRevenue(src),
                                                        getDistance(src),
                                                        getStop(src))
-                graph.edges[src] = []
+                self.graph.edges[src] = []
             
                 # find what this src connects to on the hex and
                 # explore each direction
@@ -114,7 +141,7 @@ class MapSolver:
 
                     dst = step((src[0], src[1], next))
 
-                    graph.edges[src] += [dst]
+                    self.graph.edges[src] += [dst]
 
                     # # if this is a hexside connection, we need to add
                     # # an edge to the other hexside if one doesn't
@@ -128,42 +155,20 @@ class MapSolver:
 
                     explore(dst)
 
-        for src in startingCities:
+        for src in self.startingCities:
             explore(src)
 
-        for src, dsts in sorted([(str(src),dsts) for src,dsts in graph.edges.items()]):
-            print (src, dsts)
-
-        # hexsides are really a single location; update them in the
-        # vertex dictionary to use the same object
-        def canonicalize(loc):
-            # always use hexside 0,1,2 so there is a common name for
-            # each side of a hexside
-            if isinstance(loc[2], int):
-                delta = {
-                    0: (0, 0, 0),
-                    1: (0, 0, 1),
-                    2: (0, 0, 2),
-                    3: (1, 0, 0),
-                    4: (0, -1, 1),
-                    5: (-1, 0, 2)
-                    }[loc[2]]
-                res = [loc[0] + delta[0], loc[1] + delta[1], delta[2]]
-                if delta[0] != 0 and loc[0] % 2 == 0: res[1] -= 1
-                return tuple(res)
-            else:
-                return loc
+        # for src, dsts in sorted([(str(src),dsts) for src,dsts in self.graph.edges.items()]):
+        #     print (src, dsts)
 
         newvertices = {}
-        for loc in graph.vertices.keys():
-            canloc = canonicalize(loc)
-            if canloc in graph.vertices.keys():
-                newvertices[loc] = graph.vertices[canloc]
+        for loc in self.graph.vertices.keys():
+            canloc = MapSolver.canonicalize(loc)
+            if canloc in self.graph.vertices.keys():
+                newvertices[loc] = self.graph.vertices[canloc]
             else:
-                newvertices[loc] = graph.vertices[loc]
-        graph.vertices = newvertices
-
-        return graph
+                newvertices[loc] = self.graph.vertices[loc]
+        self.graph.vertices = newvertices
 
     def solve(self, company):
         # constraints:
@@ -185,16 +190,17 @@ class MapSolver:
 
         print ("Optimizing routes for:", company)
         
-        startingCities = self.getStartingCities(company)
+        self.findStartingCities(company)
 
-        graph = self.buildGraph(startingCities)
+        self.buildGraph()
 
-        routes, revenues = self.findBestRoutes(company.trains, graph, startingCities)
+        routes, revenues = self.findBestRoutes(tuple(company.trains), set())
 
         print ("Found:", routes, revenues)
+        print ("In %s explorations" % self.explorations)
 
     def log(self, *args):
-        return
+        # return
         print ("".join(["    "]*self.recursionDepth), *args)
 
     # absurdly slow branch-and-bound ... take one step in the first
@@ -225,20 +231,33 @@ class MapSolver:
     #
     # todo: will the memoization list itself become unreasonable
     # large?
-    def findBestRoutes(self, trains, graph, startingCities):
-        if trains == []: return [], 0
+    class Memo:
+        def __init__(self, routes, revenues, hexsideConstraints, hexsidesUsed):
+            self.routes = routes
+            self.revenues = revenues
+            self.hexsideConstraints = hexsideConstraints
+            self.hexsidesUsed = hexsidesUsed
+
+        def __gt__(self, that):
+            return self.revenues < that.revenues
+
+        def __repr__(self):
+            return "(rev: %s, rte: %s, used: %s, cnst: %s)" % (self.revenues, self.routes, self.hexsidesUsed, self.hexsideConstraints)
+    
+    def findBestRoutes(self, trains, hexsideConstraints):
+        if len(trains) == 0: return [], 0
         self.recursionDepth += 1
 
         # baseline option is not to run this train at all...
         self.log("Skipping %s-train." % trains[0])
-        bestRoutes, bestRevenues = self.findBestRoutes(trains[1:], graph, startingCities)
+        bestRoutes, bestRevenues = \
+            self.findBestRoutes(trains[1:], hexsideConstraints)
         bestRoutes = [[]] + bestRoutes
 
         # try starting this train at every possible starting city
-        for city in startingCities:
-            cityRoutes, cityRevenues = self.findBestRoutesFromCity(trains[0], city,
-                                                                   trains[1:], graph,
-                                                                   startingCities)
+        for city in self.startingCities:
+            cityRoutes, cityRevenues = \
+                self.findBestRoutesFromCity(trains[0], city, trains[1:], hexsideConstraints)
             
             if cityRevenues > bestRevenues:
                 bestRevenues = cityRevenues
@@ -247,29 +266,48 @@ class MapSolver:
         self.recursionDepth -= 1
         return bestRoutes, bestRevenues
 
-    def findBestRoutesFromCity(self, train, city, trains, graph, startingCities):
+    def findBestRoutesFromCity(self, train, city, trains, hexsideConstraints):
         # self.recursionDepth -= 1
         self.log("Exploring %s-train from %s." % (train, city))
+
+        # see if we can memoize this call...
+        #
+        # TODO: MOVE MEMOIZATION UP TO FINDBESTROUTES(). BY
+        # ARBITRARILY RESTRICTING MEMOIZATION TO A STARTING CITY, THIS
+        # IS STORING TOO MANY MEMOS AND PERFORMING REDUNDANT WORK.
+        if (train, city, trains) in self.memoize:
+            memos = self.memoize[(train, city, trains)]
+            for memo in memos:
+                if hexsideConstraints >= memo.hexsideConstraints and \
+                   hexsideConstraints & memo.hexsidesUsed == set():
+                    self.log("Memoized! Current constraints: %s, Memo constraints: %s, Memo hexsides: %s"\
+                             % (hexsideConstraints, memo.hexsideConstraints, memo.hexsidesUsed))
+                    return memo.routes, memo.revenues
         
         # can only do a single step at a time --- need to give the
         # other trains a chance too!
         route = [city]
-        revenue = graph.vertices[city].revenue
-        distance = graph.vertices[city].distance
+        revenue = self.graph.vertices[city].revenue
+        distance = self.graph.vertices[city].distance
         stops = 1
 
         bestRoutes = [[]]
         bestRevenues = 0
 
         def explore():
+            self.explorations += 1
+            
             nonlocal route, revenue, distance, stops, bestRoutes, bestRevenues
             if distance == train: return
             self.recursionDepth += 1
 
             src = route[-1]
 
-            for dst in graph.edges[src]:
-                dstv = graph.vertices[dst]
+            # TODO: THIS ONLY GROWS IN ONE DIRECTION, IT WILL NOT LET
+            # US EXPLORE BEFORE AND AFTER A STARTING CITY
+
+            for dst in self.graph.edges[src]:
+                dstv = self.graph.vertices[dst]
                 self.log("Step:", dst, dstv)
                 if not dstv.available[0]:
                     self.log("Unavailable.")
@@ -282,6 +320,13 @@ class MapSolver:
                 stops += dstv.stop
                 dstv.available[0] = False
 
+                addConstraint = False
+                if MapSolver.isHexside(dst):
+                    candst = MapSolver.canonicalize(dst)
+                    if candst not in hexsideConstraints:
+                        hexsideConstraints.add(candst)
+                        addConstraint = True
+
                 # solve for best routes for other trains
                 self.log("Route:", [route], revenue, distance, stops)
                 
@@ -292,7 +337,7 @@ class MapSolver:
                     # above)
                     if stops >= 2:
                         otherRoutes, otherRevenues = \
-                            self.findBestRoutes(trains, graph, startingCities)
+                            self.findBestRoutes(trains, hexsideConstraints)
 
                         revenues = revenue + otherRevenues
                         if revenues > bestRevenues:
@@ -304,6 +349,7 @@ class MapSolver:
                     explore()
 
                 # unwind, iterate
+                if addConstraint: hexsideConstraints.remove(candst)
                 dstv.available[0] = True
                 stops -= dstv.stop
                 distance -= dstv.distance
@@ -315,6 +361,56 @@ class MapSolver:
 
         explore()
 
+        # memoize result and deduplicate
+        if (train, city, trains) not in self.memoize:
+            self.memoize[ (train, city, trains) ] = sortedcontainers.SortedList()
+
+        hexsidesUsed = set()
+        for route in bestRoutes:
+            for loc in route:
+                if MapSolver.isHexside(loc):
+                    hexsidesUsed.add(MapSolver.canonicalize(loc))
+
+        memo = MapSolver.Memo(bestRoutes, bestRevenues,
+                              copy.copy(hexsideConstraints), hexsidesUsed)
+        memos = self.memoize[(train,city,trains)]
+
+        i = memos.bisect_left(memo)
+        self.log("Deduping from", i, "to", len(memos))
+        while i < len(memos):
+            memo2 = memos[i]
+            self.log("Considering", i, memo2)
+            pruned = False
+            
+            # because it is a sorted list, once we see a memo with
+            # worse revenue, we can stop looking
+            if memo2.revenues < bestRevenues:
+                break
+            # if this other memo is more restrictive and returns
+            # exactly the same result, delete it
+            elif memo2.revenues == bestRevenues:
+
+                if memo2.hexsidesUsed == memo.hexsidesUsed and \
+                   memo2.hexsideConstraints >= memo.hexsideConstraints:
+                    self.log("Pruned over-restrictive memo", memos, i)
+                    del memos[i]
+                    pruned = True
+
+                # # not sure we need this and it seems risky to get
+                # # rid of a less-constrained solution...
+                # elif memo2.hexsidesUsed >= memo.hexsides and \
+                #      memo2.hexsideConstraints <= memo.hexsideConstraints:
+                #     self.log("Pruned wasteful memo", memos, i)
+                #     del memos[i]
+                #     pruned = True
+                
+            # (we're doing weird c++ iterator because the del
+            # implicitly increments i)
+            if not pruned: i += 1
+
+        memos.add(memo)
+        self.log("Added memo: %s (%s total)" % (memo, len(memos)))
+        
         # self.recursionDepth += 1
         return bestRoutes, bestRevenues
 
