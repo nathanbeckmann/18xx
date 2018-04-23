@@ -27,22 +27,86 @@ class MapSolver:
 
     # build up a graph representation of the map so we can add and
     # remove edges during exploration
-    class Node:
-        def __init__(self, loc, solver):
-            self.loc = loc
-            self.available = None
-            self.revenue = solver.getRevenue(loc)
-            self.distance = solver.getDistance(loc)
+    class Graph:
+        def __init__(self):
+            self.vertices = {}
+            self.edges = {}
+
+    class Vertex:
+        def __init__(self, revenue, distance, stop):
+            # self.name = name
+            self.revenue = revenue
+            self.distance = distance
+            self.stop = stop
+            self.available = [True]
 
         def __repr__(self):
-            return "(%s, %s, %s, %s)" % (self.loc, self.available, self.revenue, self.distance)
+            return "rev: %s, dist: %s, stop: %s, available: %s" % (self.revenue, self.distance, self.stop, self.available)
+            
+    # class Node:
+    #     def __init__(self, loc, revenue, distance):
+    #         self.loc = tuple(loc)
+    #         self.revenue = revenue
+    #         self.distance = distance
+    #         self.available = [True]
+
+    #     def __repr__(self):
+    #         return "(%s, %s, %s, %s)" % (self.loc, self.available, self.revenue, self.distance)
+
+    #     @staticmethod
+    #     def mirror(srcnode):
+    #         src = srcnode.loc
+    #         assert isinstance(src[2], int)
+            
+    #         # compute the facing hexside from the destination's
+    #         # perspective
+    #         delta = {
+    #             0: (-1, 1),
+    #             1: (0, 1),
+    #             2: (1, 1),
+    #             3: (1, 0),
+    #             4: (0, -1),
+    #             5: (-1, 0)
+    #         }[src[2]]
+    #         dst = [src[0] + delta[0], src[1] + delta[1], src[2]]
+    #         if delta[0] != 0 and src[0] % 2 == 0: dst[1] -= 1
+
+    #         # the hexside we connect to is mirrored from the
+    #         # perspective of the destination
+    #         dst[2] += 3
+    #         dst[2] %= 6
+
+    #         dstnode = MapSolver.Node(dst, srcnode.revenue, srcnode.distance)
+    #         dstnode.available = srcnode.available
+    #         return dstnode
     
     def buildGraph(self, startingCities):
-        nodes = {}
+        graph = MapSolver.Graph()
 
-        def step(src, next):
-            if isinstance(next,int):
-                # adjust row/col
+        def getDistance(loc):
+            # count cities and towns
+            return 1 if isinstance(loc[2], str) else 0
+
+        def getRevenue(loc):
+            # count cities and towns
+            if isinstance(loc[2], str):
+                rev = self.map.getHex(loc[0], loc[1]).revenue
+                if isinstance(rev, int):
+                    return rev
+                elif rev == None:
+                    return 0
+                else:
+                    return rev[self.map.getPhase()]
+            else:
+                return 0
+
+        def getStop(loc):
+            return 1 if isinstance(loc[2], str) else 0
+
+        def step(src):
+            if isinstance(src[2], int):
+                # compute the facing hexside from the destination's
+                # perspective
                 delta = {
                     0: (-1, 1),
                     1: (0, 1),
@@ -50,29 +114,32 @@ class MapSolver:
                     3: (1, 0),
                     4: (0, -1),
                     5: (-1, 0)
-                }[next]
-                dst = [src[0] + delta[0], src[1] + delta[1]]
+                }[src[2]]
+                dst = [src[0] + delta[0], src[1] + delta[1], src[2]]
                 if delta[0] != 0 and src[0] % 2 == 0: dst[1] -= 1
 
                 # the hexside we connect to is mirrored from the
                 # perspective of the destination
-                next += 3
-                next %= 6
+                dst[2] += 3
+                dst[2] %= 6
+
+                return tuple(dst)
             else:
-                # another location in the same tile
-                dst = src
-            return (dst[0], dst[1], next)
-
-        def explore(src):
-            # print (src)
-            r,c,loc = src
-
-            if src not in nodes.keys():
-                nodes[src] = []
+                return src
             
-                hx = self.map.getHex(r,c)
-                assert hx != None
-                
+        def explore(src):
+            r,c,loc = src
+            hx = self.map.getHex(r,c)
+            assert hx != None
+
+            if src not in graph.vertices.keys():
+                graph.vertices[src] = MapSolver.Vertex(getRevenue(src),
+                                                       getDistance(src),
+                                                       getStop(src))
+                graph.edges[src] = []
+            
+                # find what this src connects to on the hex and
+                # explore each direction
                 for conn in hx.connections:
                     assert len(conn) == 2
                     if loc == conn[1]:
@@ -81,27 +148,71 @@ class MapSolver:
                         next = conn[1]
                     else:
                         continue
-                    
-                    dst = step(src, next)
-                    nodes[src] += [ self.Node(dst, self) ]
+
+                    dst = step((src[0], src[1], next))
+
+                    graph.edges[src] += [dst]
+
+                    # # if this is a hexside connection, we need to add
+                    # # an edge to the other hexside if one doesn't
+                    # # exist...
+                    # if isinstance(next,int):
+                    #     if dst not in nodes.keys():
+                    #         nodes[dst] = [ MapSolver.Node.mirror(dstnode) ]
+                    #         print ("Mirror for %s is %s." % (dst, nodes[dst][-1]))
+                    #     assert len(nodes[dst]) == 1
+                    #     dst = nodes[dst][-1].loc
+
                     explore(dst)
 
         for src in startingCities:
             explore(src)
 
-        # allocate shared 'available' boolean values for edges in each
-        # direction
-        for src, dsts in nodes.items():
-            for dst in dsts:
-                if dst.available == None:
-                    dst.available = [True]
-                    # find the corresponding edge pointing in the
-                    # other direction
-                    for src2 in nodes[dst.loc]:
-                        if src2.loc == src:
-                            src2.available = dst.available
+        for src, dsts in sorted([(str(src),dsts) for src,dsts in graph.edges.items()]):
+            print (src, dsts)
 
-        print ("Graph:", nodes)
+        # hexsides are really a single location; update them in the
+        # vertex dictionary to use the same object
+        def canonicalize(loc):
+            # always use hexside 0,1,2 so there is a common name for
+            # each side of a hexside
+            if isinstance(loc[2], int):
+                delta = {
+                    0: (0, 0, 0),
+                    1: (0, 0, 1),
+                    2: (0, 0, 2),
+                    3: (1, 0, 0),
+                    4: (0, -1, 1),
+                    5: (-1, 0, 2)
+                    }[loc[2]]
+                res = [loc[0] + delta[0], loc[1] + delta[1], delta[2]]
+                if delta[0] != 0 and loc[0] % 2 == 0: res[1] -= 1
+                return tuple(res)
+            else:
+                return loc
+
+        newvertices = {}
+        for loc in graph.vertices.keys():
+            canloc = canonicalize(loc)
+            if canloc in graph.vertices.keys():
+                newvertices[loc] = graph.vertices[canloc]
+            else:
+                newvertices[loc] = graph.vertices[loc]
+        graph.vertices = newvertices
+
+        # # allocate shared 'available' boolean values for edges in each
+        # # direction
+        # for src, dsts in nodes.items():
+        #     for dst in dsts:
+        #         print (src, dst.loc)
+        #         if dst.available == None:
+        #             dst.available = [True]
+        #             # find the corresponding edge pointing in the
+        #             # other direction
+        #             for src2 in nodes[dst.loc]:
+        #                 if src2.loc == src:
+        #                     print ("Matched:", src2, dst)
+        #                     src2.available = dst.available
 
         # # de-ref 'pointers' to speed things up?
         # for src, dsts in nodes.items():
@@ -109,7 +220,7 @@ class MapSolver:
         #         assert dst in nodes.keys()
         #         dsts[di] = nodes[dst]
 
-        return nodes
+        return graph
 
     def solve(self, company):
         # constraints:
@@ -178,8 +289,8 @@ class MapSolver:
         # can only do a single step at a time --- need to give the
         # other trains a chance too!
         route = [city]
-        revenue = self.map.getHex(city[0],city[1]).revenue
-        distance = self.getDistance(city)
+        revenue = graph.vertices[city].revenue
+        distance = graph.vertices[city].distance
         stops = 1
 
         bestRoutes = [[]]
@@ -192,15 +303,19 @@ class MapSolver:
 
             src = route[-1]
 
-            for dst in graph[src]:
-                if not dst.available[0]: continue
+            for dst in graph.edges[src]:
+                dstv = graph.vertices[dst]
+                self.log("Step:", dst, dstv)
+                if not dstv.available[0]:
+                    self.log("Unavailable.")
+                    continue
 
                 # claim this path so it can't be used by any other routes
-                route.append(dst.loc)
-                revenue += dst.revenue
-                distance += dst.distance
-                stops += 1 if isinstance(dst.loc[2], str) else 0
-                dst.available[0] = False
+                route.append(dst)
+                revenue += dstv.revenue
+                distance += dstv.distance
+                stops += dstv.stop
+                dstv.available[0] = False
 
                 # solve for best routes for other trains
                 self.log("Route:", [route], revenue, distance, stops)
@@ -224,10 +339,10 @@ class MapSolver:
                     explore()
 
                 # unwind, iterate
-                dst.available[0] = True
-                stops -= 1 if isinstance(dst.loc[2], str) else 0
-                distance -= dst.distance
-                revenue -= dst.revenue
+                dstv.available[0] = True
+                stops -= dstv.stop
+                distance -= dstv.distance
+                revenue -= dstv.revenue
                 route.pop()
 
             self.recursionDepth -= 1
@@ -286,18 +401,3 @@ class MapSolver:
     def isValidRoute(self, route):
         counts = collections.Counter(route)
         return max(counts.values()) == 1
-
-    def getDistance(self, loc):
-        # count cities and towns
-        return 1 if isinstance(loc[2], str) else 0
-
-    def getRevenue(self, loc):
-        # count cities and towns
-        if isinstance(loc[2], str):
-            rev = self.map.getHex(loc[0], loc[1]).revenue
-            if isinstance(rev, int):
-                return rev
-            else:
-                return rev[self.map.getPhase()]
-        else:
-            return 0

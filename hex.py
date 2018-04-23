@@ -40,12 +40,29 @@ class Hex:
             self.connections[ci] = sorted(self.connections[ci], key=keyfn)
         self.connections = sorted(self.connections)
 
+        # # directed map of what connects to what. useful when solving
+        # # for optimal routes.
+        # self.connectsTo = {}
+        # for conn in self.connections:
+        #     assert len(conn) == 2
+            
+        #     if conn[0] in self.connectsTo.keys():
+        #         self.connectsTo[conn[0]] += [conn[1]]
+        #     else:
+        #         self.connectsTo[conn[0]] = [conn[1]]
+                
+        #     if conn[1] in self.connectsTo.keys():
+        #         self.connectsTo[conn[1]] += [conn[0]]
+        #     else:
+        #         self.connectsTo[conn[1]] = [conn[0]]
+
     def __deepcopy__(self, memo):
         # do a selective, shallow copy of the hex pieces, since hexes
         # are immutable --- do NOT deepcopy the map, or it blows up
         # memory!
         newHex = copy.copy(self)
         newHex.connections = copy.deepcopy(self.connections, memo)
+        # newHex.connectsTo = copy.deepcopy(self.connectsTo, memo)
         newHex.revenue = copy.deepcopy(self.revenue, memo)
         # newHex.upgradesTo = copy.deepcopy(self.upgradesTo)
         # newHex.downgradesTo = copy.deepcopy(self.downgradesTo)

@@ -37,7 +37,7 @@ class Map:
                 if "cities" not in tile.keys(): continue
                 newcities = []
                 for citysize in tile["cities"]:
-                    newcities += [ [None] * citysize ]
+                    newcities += [ [0] * citysize ]
                 tile["cities"] = newcities
 
             for tile in self.tiles.values():
@@ -202,7 +202,7 @@ class MapWindow:
 
     def key(self, event):
         # pass
-        print ('Key press: ' + repr(event.char))
+        # print ('Key press: ' + repr(event.char))
         if event.char == 'q' or event.char == 'Q': exit(0)
 
         if event.char == 's': self.solve()
