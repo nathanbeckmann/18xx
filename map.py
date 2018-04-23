@@ -37,7 +37,7 @@ class Map:
                 if "cities" not in tile.keys(): continue
                 newcities = []
                 for citysize in tile["cities"]:
-                    newcities += [ [0] * citysize ]
+                    newcities += [ [None] * citysize ]
                 tile["cities"] = newcities
 
             for tile in self.tiles.values():
