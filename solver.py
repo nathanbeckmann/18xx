@@ -196,13 +196,35 @@ class MapSolver:
     def log(self, *args):
         return
         print ("".join(["    "]*self.recursionDepth), *args)
-        
+
     # absurdly slow branch-and-bound ... take one step in the first
     # train, solve for all the other trains ... repeat.
     #
-    # we should be able to do some heavy memoization here ... remember
-    # what track was used by a given optimal solution and only
-    # re-compute if it has been taken.
+    # memoization strategy:
+    # 
+    # to avoid repeating the same thing over and over and over... we
+    # record the hexsides used by the best routes returned.
+    #
+    # then we pass in the hexside constraints from other routes when
+    # findBestRoutes is called.
+    #
+    # if the hexsides constraints are a superset of prior constraints
+    # AND they do not overlap with any used in the best routes, then
+    # we can safely return the previous result.
+    #
+    # if they are not a superset, then we need to recompute the best
+    # route to be sure we aren't missing any opportunities.
+    #
+    # if they overlap with the prior result, then we obviously need to
+    # recompute because that result isn't feasible.
+    #
+    # finally, if the new result is identical to a previous result,
+    # then we scan over the memoized results and remove any
+    # "duplicates" whose constraints are a superset of the new
+    # constraints.
+    #
+    # todo: will the memoization list itself become unreasonable
+    # large?
     def findBestRoutes(self, trains, graph, startingCities):
         if trains == []: return [], 0
         self.recursionDepth += 1
