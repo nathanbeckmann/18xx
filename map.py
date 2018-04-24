@@ -185,6 +185,7 @@ class MapWindow:
     def __init__(self, map, hexsize=50):
         self.map = map
         self.upgradeWindow = None
+        self.useMemo = True
 
     def run(self):
         self.root = tkinter.Tk()
@@ -207,11 +208,13 @@ class MapWindow:
 
         if event.char == 's': self.solve()
 
+        if event.char == 'm': self.useMemo = not self.useMemo
+
     def solve(self):
-        hx = self.map.getHex(2,13)
-        hx.cities[0][0] = 0
-        s = solver.MapSolver(self.map)
-        s.solve(company.Company(0, [2,2,3]))
+        # hx = self.map.getHex(2,13)
+        # hx.cities[0][0] = 0
+        s = solver.MapSolver(self.map, self.useMemo)
+        s.solve(company.Company(0, [4,5,5]))
 
     def undo(self):
         self.map.undo()

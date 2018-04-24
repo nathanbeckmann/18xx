@@ -12,10 +12,11 @@ import collections
 import sortedcontainers
 
 class MapSolver:
-    def __init__(self, map):
+    def __init__(self, map, useMemo=True):
         self.map = map
         self.recursionDepth = 0
         self.memoize = {}
+        self.useMemo = useMemo
         self.explorations = 0
 
     def findStartingCities(self, company):
