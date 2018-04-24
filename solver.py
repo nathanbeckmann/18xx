@@ -18,6 +18,7 @@ class MapSolver:
         self.memoize = {}
         self.useMemo = useMemo
         self.explorations = 0
+        self.combinations = 0
 
     def findStartingCities(self, company):
         self.startingCities = []
@@ -195,182 +196,138 @@ class MapSolver:
 
         self.buildGraph()
 
-        routes, revenues = self.findBestRoutes(tuple(company.trains), set())
+        routes = self.findAllRoutes(max(company.trains))
+        print ("Found %s routes in %s steps:" % (len(routes), self.explorations))
+        for r in routes:
+            print ("    Revenue: %s, Stops: %s, Hexsides: %s" % (r[0], [ (r,c) for r,c,s in r[2] if isinstance(s,str) ], r[3]))
 
-        print ("Found:", routes, revenues)
-        print ("In %s explorations" % self.explorations)
+        revenues, routes = self.findBestRoutes(company.trains, routes)
+
+        print ()
+        print ("Best revenue:", revenues)
+        print ("Best routes for trains %s:" % company.trains)
+        for r in routes:
+            print ("    Revenue: %s, Stops: %s, Hexsides: %s" % (r[0], [ (r,c) for r,c,s in r[2] if isinstance(s,str) ], r[3]))
+        print ("(Tried %s combinations)" % (self.combinations))
 
     def log(self, *args):
-        # return
+        return
         print ("".join(["|   "]*self.recursionDepth), *args)
 
-    # absurdly slow branch-and-bound ... take one step in the first
-    # train, solve for all the other trains ... repeat.
-    #
-    # memoization strategy:
-    # 
-    # to avoid repeating the same thing over and over and over... we
-    # record the hexsides used by the best routes returned.
-    #
-    # then we pass in the hexside constraints from other routes when
-    # findBestRoutes is called.
-    #
-    # if the hexsides constraints are a superset of prior constraints
-    # AND they do not overlap with any used in the best routes, then
-    # we can safely return the previous result.
-    #
-    # if they are not a superset, then we need to recompute the best
-    # route to be sure we aren't missing any opportunities.
-    #
-    # if they overlap with the prior result, then we obviously need to
-    # recompute because that result isn't feasible.
-    #
-    # finally, if the new result is identical to a previous result,
-    # then we scan over the memoized results and remove any
-    # "duplicates" whose constraints are a superset of the new
-    # constraints.
-    #
-    # todo: will the memoization list itself become unreasonable
-    # large?
-    class Memo:
-        def __init__(self, routes, revenues, hexsideConstraints, hexsidesUsed):
-            self.routes = routes
-            self.revenues = revenues
-            self.hexsideConstraints = hexsideConstraints
-            self.hexsidesUsed = hexsidesUsed
+    def findBestRoutes(self, trains, routes):
+        # enumerate all combinations of routes, aborting once we know
+        # the remaining routes can't possibly do better than the best
+        # we've currently found
 
-        def __gt__(self, that):
-            return self.revenues < that.revenues
+        bestRevenues = 0
+        bestRoutes = []
 
-        def __repr__(self):
-            return "(rev: %s, rte: %s, used: %s, cnst: %s)" % (self.revenues, self.routes, self.hexsidesUsed, self.hexsideConstraints)
-
-    def checkMemo(self, memokey, hexsideConstraints):
-        # see if we can memoize this call...
-        if memokey in self.memoize:
-            memos = self.memoize[memokey]
-            for memo in memos:
-                if hexsideConstraints < memo.hexsideConstraints:
-                    self.log("Skipping more restrictive memo -- Current constraints: %s, Memo constraints: %s, Memo hexsides: %s, Memo revenues: %s"\
-                             % (hexsideConstraints, memo.hexsideConstraints, memo.hexsidesUsed, memo.revenues))
-                if hexsideConstraints & memo.hexsidesUsed != set():
-                    self.log("Skipping infeasible memo -- Current constraints: %s, Memo constraints: %s, Memo hexsides: %s, Memo revenues: %s"\
-                             % (hexsideConstraints, memo.hexsideConstraints, memo.hexsidesUsed, memo.revenues))
-                if hexsideConstraints >= memo.hexsideConstraints and \
-                   hexsideConstraints & memo.hexsidesUsed == set():
-                    self.log("Memoized! Current constraints: %s, Memo constraints: %s, Memo hexsides: %s, Memo revenues: %s"\
-                             % (hexsideConstraints, memo.hexsideConstraints, memo.hexsidesUsed, memo.revenues))
-                    return memo.routes, memo.revenues
-                
-        return None
-
-    def updateMemo(self, memokey, bestRoutes, bestRevenues, hexsideConstraints):
-        if not self.useMemo: return
-        
-        # memoize result and deduplicate
-        if memokey not in self.memoize:
-            self.memoize[ memokey ] = sortedcontainers.SortedList()
-
-        hexsidesUsed = set()
-        for route in bestRoutes:
-            for loc in route:
-                if MapSolver.isHexside(loc):
-                    hexsidesUsed.add(MapSolver.canonicalize(loc))
-
-        memo = MapSolver.Memo(bestRoutes, bestRevenues,
-                              copy.copy(hexsideConstraints), hexsidesUsed)
-        memos = self.memoize[memokey]
-
-        i = memos.bisect_left(memo)
-        self.log("Deduping from", i, "to", len(memos))
-        while i < len(memos):
-            memo2 = memos[i]
-            self.log("Considering", i, memo2)
-            pruned = False
+        def loop(hexsidesUsed, currTrain, remainingTrains, revenuesSoFar, routesSoFar):
+            nonlocal bestRevenues, bestRoutes, routes
             
-            # because it is a sorted list, once we see a memo with
-            # worse revenue, we can stop looking
-            if memo2.revenues < bestRevenues:
-                break
-            # if this other memo is more restrictive and returns
-            # exactly the same result, delete it
-            elif memo2.revenues == bestRevenues:
-
-                if memo2.hexsidesUsed == memo.hexsidesUsed and \
-                   memo2.hexsideConstraints >= memo.hexsideConstraints:
-                    self.log("Pruned over-restrictive memo", memos, i)
-                    del memos[i]
-                    pruned = True
-
-                # # not sure we need this and it seems risky to get
-                # # rid of a less-constrained solution...
-                # elif memo2.hexsidesUsed >= memo.hexsides and \
-                #      memo2.hexsideConstraints <= memo.hexsideConstraints:
-                #     self.log("Pruned wasteful memo", memos, i)
-                #     del memos[i]
-                #     pruned = True
+            for r in routes:
+                self.combinations += 1
                 
-            # (we're doing weird c++ iterator because the del
-            # implicitly increments i)
-            if not pruned: i += 1
+                if r[1] > currTrain: continue
 
-        memos.add(memo)
-        self.log("Added memo: %s --> %s (%s total)" % (memokey, memo, len(memos)))
-    
-    def findBestRoutes(self, trains, hexsideConstraints):
-        if len(trains) == 0: return [], 0
-        self.recursionDepth += 1
-        self.log("findBestRoutes(%s, %s)" % (trains, hexsideConstraints))
+                if r[3] & hexsidesUsed != set(): continue
 
-        memoResult = self.checkMemo(trains, hexsideConstraints)
-        if memoResult:
-            self.recursionDepth -=1
-            return memoResult
+                currRevenues = revenuesSoFar + r[0]
+                currRoutes = routesSoFar + [r]
+
+                if currRevenues > bestRevenues:
+                    bestRevenues = currRevenues
+                    bestRoutes = currRoutes
+
+                if len(remainingTrains) > 0:
+                    loop(hexsidesUsed | r[3],
+                         remainingTrains[0],
+                         remainingTrains[1:],
+                         currRevenues,
+                         currRoutes)
+
+        if len(trains) > 0:
+            loop(set(), trains[0], trains[1:], 0, [])
+
+        return bestRevenues, bestRoutes
         
+    def findAllRoutes(self, maxDistance):
+        self.recursionDepth += 1
+        self.log("findAllRoutes(%s)" % (maxDistance))
+
         # baseline option is not to run this train at all...
-        self.log("Skipping %s-train." % trains[0])
-        bestRoutes, bestRevenues = \
-            self.findBestRoutes(trains[1:], hexsideConstraints)
-        bestRoutes = [[]] + bestRoutes
+        routes = [ (0, 0, [], set()) ]
 
-        # try starting this train at every possible starting city
+        # dictionary indexed by revenue that stores the set of
+        # hexsides used by all routes found at that revenue. used for
+        # merging.
+        hexsidesUsedByRevenue = {}
+
+        # try starting this train at every possible starting city,
+        # merge the results
         for city in self.startingCities:
-            cityRoutes, cityRevenues = \
-                self.findBestRoutesFromCity(trains[0], city, trains[1:], hexsideConstraints)
-            
-            if cityRevenues > bestRevenues:
-                bestRevenues = cityRevenues
-                bestRoutes = cityRoutes
+            cityRoutes = self.findAllRoutesFromCity(maxDistance, city)
 
-        self.updateMemo(trains, bestRoutes, bestRevenues, hexsideConstraints)
-        
+            # merge --- this ended up getting a little complicated...
+            #
+            # the basic idea is simple though. we want to keep a
+            # sorted list (by revenue) of all unique routes we've
+            # found so far. de-dupping the routes requires us to track
+            # the set of hexsides used by each route.
+            mergedRoutes = []
+            i, j = 0, 0
+            while i < len(routes) and j < len(cityRoutes):
+                if routes[i][0] < cityRoutes[j][0]:
+                    next = routes[i]
+                    i += 1
+                elif routes[i][0] > cityRoutes[j][0]:
+                    next = cityRoutes[j]
+                    j += 1
+                else:
+                    # equal revenue; check if we have a duplicate
+                    # route, and skip it if so
+                    assert cityRoutes[j][0] in hexsidesUsedByRevenue.keys()
+                    if tuple(cityRoutes[j][3]) in hexsidesUsedByRevenue[ cityRoutes[j][0] ]:
+                        # already have this; skip it
+                        next = None
+                    else:
+                        # new route; add it
+                        next = cityRoutes[j]
+                    j += 1
+
+                if next != None:
+                    mergedRoutes.append(next)
+                    if next[0] not in hexsidesUsedByRevenue.keys():
+                        hexsidesUsedByRevenue[next[0]] = set()
+                    hexsidesUsedByRevenue[ next[0] ].add(tuple(next[3]))
+
+            mergedRoutes += routes[i:]
+            mergedRoutes += cityRoutes[j:]
+            for r in cityRoutes[j:]:
+                if r[0] not in hexsidesUsedByRevenue.keys():
+                    hexsidesUsedByRevenue[r[0]] = set()
+                hexsidesUsedByRevenue[r[0]].add(tuple(r[3]))
+                
+            routes = mergedRoutes
+
         self.recursionDepth -= 1
-        return bestRoutes, bestRevenues
+        return routes
 
-    def findBestRoutesFromCity(self, train, city, trains, hexsideConstraints):
+    def findAllRoutesFromCity(self, maxDistance, city):
         self.recursionDepth += 1
-        self.log("Exploring %s-train from %s." % (train, city))
+        self.log("Exploring up to distance %s from %s." % (maxDistance, city))
 
-        memoResult = self.checkMemo((train,city,trains), hexsideConstraints)
-        if memoResult:
-            self.recursionDepth -=1
-            return memoResult
-
-        # can only do a single step at a time --- need to give the
-        # other trains a chance too!
         route = [city]
         revenue = self.graph.vertices[city].revenue
         distance = self.graph.vertices[city].distance
         stops = 1
-
-        bestRoutes = [[]]
-        bestRevenues = 0
+        hexsidesUsed = set()
+        routes = sortedcontainers.SortedList()
 
         def explore():
             self.explorations += 1
             
-            nonlocal route, revenue, distance, stops, bestRoutes, bestRevenues
-            if distance == train: return
+            nonlocal route, revenue, distance, stops, hexsidesUsed, routes
             self.recursionDepth += 1
 
             src = route[-1]
@@ -381,8 +338,15 @@ class MapSolver:
             for dst in self.graph.edges[src]:
                 dstv = self.graph.vertices[dst]
                 self.log("Step:", dst, dstv)
+
+                # TODO: REMOVE AVAILABLE THING. JUST CHECK IF HEXSIDE
+                # IS ALREADY IN ROUTE.
                 if not dstv.available[0]:
                     self.log("Unavailable.")
+                    continue
+
+                if distance + dstv.distance > maxDistance:
+                    self.log("Too far.")
                     continue
 
                 # claim this path so it can't be used by any other routes
@@ -390,39 +354,24 @@ class MapSolver:
                 revenue += dstv.revenue
                 distance += dstv.distance
                 stops += dstv.stop
-                if MapSolver.isHexside(dst): dstv.available[0] = False
-
-                addConstraint = False
                 if MapSolver.isHexside(dst):
+                    dstv.available[0] = False
                     candst = MapSolver.canonicalize(dst)
-                    if candst not in hexsideConstraints:
-                        hexsideConstraints.add(candst)
-                        addConstraint = True
+                    hexsidesUsed.add(candst)
 
-                # solve for best routes for other trains
-                self.log("Route:", [route], revenue, distance, stops)
-                
-                if self.isValidRoute(route):
-                    # only explore other routes if this one has two
-                    # stops, otherwise its like we didn't run this
-                    # train at all (which has already been explored
-                    # above)
-                    if stops >= 2:
-                        otherRoutes, otherRevenues = \
-                            self.findBestRoutes(trains, hexsideConstraints)
-
-                        revenues = revenue + otherRevenues
-                        if revenues > bestRevenues:
-                            bestRevenues = revenues
-                            bestRoutes = [copy.copy(route)] + otherRoutes
-                            self.log("**** Best route!", bestRoutes, bestRevenues)
-
-                    # now, try to extend the current route by recursing
+                valid = self.isValidRoute(route)
+                self.log("Route: %s, rev: %s, dist: %s, stops: %s, valid: %s" % ([route], revenue, distance, stops, valid))
+                if valid and stops >= 2 and dstv.revenue > 0:
+                    routes.add( (revenue, distance, copy.copy(route), copy.copy(hexsidesUsed)) )
+                    
+                # now, try to extend the current route by recursing
+                if valid:
                     explore()
 
                 # unwind, iterate
-                if addConstraint: hexsideConstraints.remove(candst)
-                dstv.available[0] = True
+                if MapSolver.isHexside(dst):
+                    hexsidesUsed.remove(candst)
+                    dstv.available[0] = True
                 stops -= dstv.stop
                 distance -= dstv.distance
                 revenue -= dstv.revenue
@@ -432,12 +381,10 @@ class MapSolver:
             return
 
         explore()
-
-        self.updateMemo((train,city,trains), bestRoutes, bestRevenues, hexsideConstraints)
         
         self.recursionDepth -= 1
-        return bestRoutes, bestRevenues
-
+        return routes
+    
     def isValidRoute(self, route):
         counts = collections.Counter(route)
         return max(counts.values()) == 1
