@@ -29,6 +29,8 @@ class MapSolver:
                     self.startingCities.append( (r,c,"city-%d" % ci) )
         print ("Starting cities for company %s: %s" % (company.id, self.startingCities))
 
+        self.startingCitiesSet = set(self.startingCities)
+
     # build up a graph representation of the map so we can add and
     # remove edges during exploration
     class Graph:
@@ -37,15 +39,14 @@ class MapSolver:
             self.edges = {}
 
     class Vertex:
-        def __init__(self, revenue, distance, stop):
-            # self.name = name
+        def __init__(self, loc, revenue, distance, stop):
+            self.loc = loc
             self.revenue = revenue
             self.distance = distance
             self.stop = stop
-            self.available = [True]
 
         def __repr__(self):
-            return "rev: %s, dist: %s, stop: %s, available: %s" % (self.revenue, self.distance, self.stop, self.available)
+            return "rev: %s, dist: %s, stop: %s" % (self.revenue, self.distance, self.stop)
 
     @staticmethod
     def isHexside(loc):
@@ -125,9 +126,10 @@ class MapSolver:
             assert hx != None
 
             if src not in self.graph.vertices.keys():
-                self.graph.vertices[src] = MapSolver.Vertex(getRevenue(src),
-                                                       getDistance(src),
-                                                       getStop(src))
+                self.graph.vertices[src] = MapSolver.Vertex(src,
+                                                            getRevenue(src),
+                                                            getDistance(src),
+                                                            getStop(src))
                 self.graph.edges[src] = []
             
                 # find what this src connects to on the hex and
@@ -222,15 +224,32 @@ class MapSolver:
         bestRevenues = 0
         bestRoutes = []
 
-        def loop(hexsidesUsed, currTrain, remainingTrains, revenuesSoFar, routesSoFar):
-            nonlocal bestRevenues, bestRoutes, routes
-            
+        # preprocess routes into lists for each train type
+        routesByTrain = {}
+        for t in set(trains):
+            routesByTrain[t] = []
+
             for r in routes:
+                if r[1] <= t:
+                    routesByTrain[t].append(r)
+
+        def loop(hexsidesUsed, currTrainRoutes, remainingTrains, revenuesSoFar, routesSoFar):
+            nonlocal bestRevenues, bestRoutes, routes
+
+            bestRemainingRevenues = revenuesSoFar
+            for t in remainingTrains:
+                bestRemainingRevenues += routesByTrain[t][0][0]
+            
+            for r in currTrainRoutes:
                 self.combinations += 1
                 
-                if r[1] > currTrain: continue
-
                 if r[3] & hexsidesUsed != set(): continue
+
+                if r[0] + bestRemainingRevenues < bestRevenues:
+                    # print("Stopping early: %s + %s = %s < %s" %
+                    #       (r[0], bestRemainingRevenues,
+                    #        r[0] + bestRemainingRevenues, bestRevenues))
+                    break
 
                 currRevenues = revenuesSoFar + r[0]
                 currRoutes = routesSoFar + [r]
@@ -241,13 +260,13 @@ class MapSolver:
 
                 if len(remainingTrains) > 0:
                     loop(hexsidesUsed | r[3],
-                         remainingTrains[0],
+                         routesByTrain[remainingTrains[0]],
                          remainingTrains[1:],
                          currRevenues,
                          currRoutes)
 
         if len(trains) > 0:
-            loop(set(), trains[0], trains[1:], 0, [])
+            loop(set(), routesByTrain[trains[0]], trains[1:], 0, [])
 
         return bestRevenues, bestRoutes
         
@@ -265,6 +284,7 @@ class MapSolver:
 
         # try starting this train at every possible starting city,
         # merge the results
+        allCities = [ x.loc for x in self.graph.vertices.values() if not MapSolver.isHexside(x.loc) ]
         for city in self.startingCities:
             cityRoutes = self.findAllRoutesFromCity(maxDistance, city)
 
@@ -311,7 +331,7 @@ class MapSolver:
             routes = mergedRoutes
 
         self.recursionDepth -= 1
-        return routes
+        return routes[::-1]
 
     def findAllRoutesFromCity(self, maxDistance, city):
         self.recursionDepth += 1
@@ -322,29 +342,29 @@ class MapSolver:
         distance = self.graph.vertices[city].distance
         stops = 1
         hexsidesUsed = set()
+        stopsHit = set()
         routes = sortedcontainers.SortedList()
 
         def explore():
             self.explorations += 1
             
-            nonlocal route, revenue, distance, stops, hexsidesUsed, routes
+            nonlocal route, revenue, distance, stops, hexsidesUsed, stopsHit, routes
             self.recursionDepth += 1
 
             src = route[-1]
-
-            # TODO: THIS ONLY GROWS IN ONE DIRECTION, IT WILL NOT LET
-            # US EXPLORE BEFORE AND AFTER A STARTING CITY
 
             for dst in self.graph.edges[src]:
                 dstv = self.graph.vertices[dst]
                 self.log("Step:", dst, dstv)
 
-                # TODO: REMOVE AVAILABLE THING. JUST CHECK IF HEXSIDE
-                # IS ALREADY IN ROUTE.
-                if not dstv.available[0]:
-                    self.log("Unavailable.")
-                    continue
-
+                if MapSolver.isHexside(dst):
+                    candst = MapSolver.canonicalize(dst)
+                    if candst in hexsidesUsed:
+                        continue
+                else:
+                    if dst in stopsHit:
+                        continue
+                    
                 if distance + dstv.distance > maxDistance:
                     self.log("Too far.")
                     continue
@@ -355,23 +375,24 @@ class MapSolver:
                 distance += dstv.distance
                 stops += dstv.stop
                 if MapSolver.isHexside(dst):
-                    dstv.available[0] = False
-                    candst = MapSolver.canonicalize(dst)
                     hexsidesUsed.add(candst)
+                else:
+                    stopsHit.add(dst)
 
-                valid = self.isValidRoute(route)
+                containsStartingCity = (stopsHit & self.startingCitiesSet != set())
+                valid = containsStartingCity and stops >= 2 and dstv.revenue > 0
                 self.log("Route: %s, rev: %s, dist: %s, stops: %s, valid: %s" % ([route], revenue, distance, stops, valid))
-                if valid and stops >= 2 and dstv.revenue > 0:
+                if valid:
                     routes.add( (revenue, distance, copy.copy(route), copy.copy(hexsidesUsed)) )
                     
                 # now, try to extend the current route by recursing
-                if valid:
-                    explore()
+                explore()
 
                 # unwind, iterate
                 if MapSolver.isHexside(dst):
                     hexsidesUsed.remove(candst)
-                    dstv.available[0] = True
+                else:
+                    stopsHit.remove(dst)
                 stops -= dstv.stop
                 distance -= dstv.distance
                 revenue -= dstv.revenue
@@ -384,7 +405,3 @@ class MapSolver:
         
         self.recursionDepth -= 1
         return routes
-    
-    def isValidRoute(self, route):
-        counts = collections.Counter(route)
-        return max(counts.values()) == 1
