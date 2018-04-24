@@ -202,7 +202,7 @@ class MapSolver:
 
     def log(self, *args):
         # return
-        print ("".join(["    "]*self.recursionDepth), *args)
+        print ("".join(["|   "]*self.recursionDepth), *args)
 
     # absurdly slow branch-and-bound ... take one step in the first
     # train, solve for all the other trains ... repeat.
@@ -250,10 +250,16 @@ class MapSolver:
         if memokey in self.memoize:
             memos = self.memoize[memokey]
             for memo in memos:
+                if hexsideConstraints < memo.hexsideConstraints:
+                    self.log("Skipping more restrictive memo -- Current constraints: %s, Memo constraints: %s, Memo hexsides: %s, Memo revenues: %s"\
+                             % (hexsideConstraints, memo.hexsideConstraints, memo.hexsidesUsed, memo.revenues))
+                if hexsideConstraints & memo.hexsidesUsed != set():
+                    self.log("Skipping infeasible memo -- Current constraints: %s, Memo constraints: %s, Memo hexsides: %s, Memo revenues: %s"\
+                             % (hexsideConstraints, memo.hexsideConstraints, memo.hexsidesUsed, memo.revenues))
                 if hexsideConstraints >= memo.hexsideConstraints and \
                    hexsideConstraints & memo.hexsidesUsed == set():
-                    self.log("Memoized! Current constraints: %s, Memo constraints: %s, Memo hexsides: %s"\
-                             % (hexsideConstraints, memo.hexsideConstraints, memo.hexsidesUsed))
+                    self.log("Memoized! Current constraints: %s, Memo constraints: %s, Memo hexsides: %s, Memo revenues: %s"\
+                             % (hexsideConstraints, memo.hexsideConstraints, memo.hexsidesUsed, memo.revenues))
                     return memo.routes, memo.revenues
                 
         return None
@@ -309,14 +315,17 @@ class MapSolver:
             if not pruned: i += 1
 
         memos.add(memo)
-        self.log("Added memo: %s (%s total)" % (memo, len(memos)))
+        self.log("Added memo: %s --> %s (%s total)" % (memokey, memo, len(memos)))
     
     def findBestRoutes(self, trains, hexsideConstraints):
         if len(trains) == 0: return [], 0
         self.recursionDepth += 1
+        self.log("findBestRoutes(%s, %s)" % (trains, hexsideConstraints))
 
         memoResult = self.checkMemo(trains, hexsideConstraints)
-        if memoResult: return memoResult
+        if memoResult:
+            self.recursionDepth -=1
+            return memoResult
         
         # baseline option is not to run this train at all...
         self.log("Skipping %s-train." % trains[0])
@@ -339,11 +348,13 @@ class MapSolver:
         return bestRoutes, bestRevenues
 
     def findBestRoutesFromCity(self, train, city, trains, hexsideConstraints):
-        # self.recursionDepth -= 1
+        self.recursionDepth += 1
         self.log("Exploring %s-train from %s." % (train, city))
 
         memoResult = self.checkMemo((train,city,trains), hexsideConstraints)
-        if memoResult: return memoResult
+        if memoResult:
+            self.recursionDepth -=1
+            return memoResult
 
         # can only do a single step at a time --- need to give the
         # other trains a chance too!
@@ -424,7 +435,7 @@ class MapSolver:
 
         self.updateMemo((train,city,trains), bestRoutes, bestRevenues, hexsideConstraints)
         
-        # self.recursionDepth += 1
+        self.recursionDepth -= 1
         return bestRoutes, bestRevenues
 
     def isValidRoute(self, route):
