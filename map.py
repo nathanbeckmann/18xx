@@ -6,6 +6,7 @@ import hex
 import copy
 import upgrade
 import solver, company
+import pickle
 from misc import *
 
 class Map:
@@ -209,6 +210,10 @@ class MapWindow:
         if event.char == 's': self.solve()
 
         if event.char == 'm': self.useMemo = not self.useMemo
+
+        if event.char == 'x':
+            with open('test.save', 'wb') as f:
+                pickle.dump(self.map, f)
 
     def solve(self):
         # hx = self.map.getHex(2,13)
