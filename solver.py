@@ -243,11 +243,80 @@ class MapSolver:
 
         def __repr__(self):
             return "(rev: %s, rte: %s, used: %s, cnst: %s)" % (self.revenues, self.routes, self.hexsidesUsed, self.hexsideConstraints)
+
+    def checkMemo(self, memokey, hexsideConstraints):
+        # see if we can memoize this call...
+        if memokey in self.memoize:
+            memos = self.memoize[memokey]
+            for memo in memos:
+                if hexsideConstraints >= memo.hexsideConstraints and \
+                   hexsideConstraints & memo.hexsidesUsed == set():
+                    self.log("Memoized! Current constraints: %s, Memo constraints: %s, Memo hexsides: %s"\
+                             % (hexsideConstraints, memo.hexsideConstraints, memo.hexsidesUsed))
+                    return memo.routes, memo.revenues
+                
+        return None
+
+    def updateMemo(self, memokey, bestRoutes, bestRevenues, hexsideConstraints):
+        if not self.useMemo: return
+        
+        # memoize result and deduplicate
+        if memokey not in self.memoize:
+            self.memoize[ memokey ] = sortedcontainers.SortedList()
+
+        hexsidesUsed = set()
+        for route in bestRoutes:
+            for loc in route:
+                if MapSolver.isHexside(loc):
+                    hexsidesUsed.add(MapSolver.canonicalize(loc))
+
+        memo = MapSolver.Memo(bestRoutes, bestRevenues,
+                              copy.copy(hexsideConstraints), hexsidesUsed)
+        memos = self.memoize[memokey]
+
+        i = memos.bisect_left(memo)
+        self.log("Deduping from", i, "to", len(memos))
+        while i < len(memos):
+            memo2 = memos[i]
+            self.log("Considering", i, memo2)
+            pruned = False
+            
+            # because it is a sorted list, once we see a memo with
+            # worse revenue, we can stop looking
+            if memo2.revenues < bestRevenues:
+                break
+            # if this other memo is more restrictive and returns
+            # exactly the same result, delete it
+            elif memo2.revenues == bestRevenues:
+
+                if memo2.hexsidesUsed == memo.hexsidesUsed and \
+                   memo2.hexsideConstraints >= memo.hexsideConstraints:
+                    self.log("Pruned over-restrictive memo", memos, i)
+                    del memos[i]
+                    pruned = True
+
+                # # not sure we need this and it seems risky to get
+                # # rid of a less-constrained solution...
+                # elif memo2.hexsidesUsed >= memo.hexsides and \
+                #      memo2.hexsideConstraints <= memo.hexsideConstraints:
+                #     self.log("Pruned wasteful memo", memos, i)
+                #     del memos[i]
+                #     pruned = True
+                
+            # (we're doing weird c++ iterator because the del
+            # implicitly increments i)
+            if not pruned: i += 1
+
+        memos.add(memo)
+        self.log("Added memo: %s (%s total)" % (memo, len(memos)))
     
     def findBestRoutes(self, trains, hexsideConstraints):
         if len(trains) == 0: return [], 0
         self.recursionDepth += 1
 
+        memoResult = self.checkMemo(trains, hexsideConstraints)
+        if memoResult: return memoResult
+        
         # baseline option is not to run this train at all...
         self.log("Skipping %s-train." % trains[0])
         bestRoutes, bestRevenues = \
@@ -263,6 +332,8 @@ class MapSolver:
                 bestRevenues = cityRevenues
                 bestRoutes = cityRoutes
 
+        self.updateMemo(trains, bestRoutes, bestRevenues, hexsideConstraints)
+        
         self.recursionDepth -= 1
         return bestRoutes, bestRevenues
 
@@ -270,20 +341,9 @@ class MapSolver:
         # self.recursionDepth -= 1
         self.log("Exploring %s-train from %s." % (train, city))
 
-        # see if we can memoize this call...
-        #
-        # TODO: MOVE MEMOIZATION UP TO FINDBESTROUTES(). BY
-        # ARBITRARILY RESTRICTING MEMOIZATION TO A STARTING CITY, THIS
-        # IS STORING TOO MANY MEMOS AND PERFORMING REDUNDANT WORK.
-        if (train, city, trains) in self.memoize:
-            memos = self.memoize[(train, city, trains)]
-            for memo in memos:
-                if hexsideConstraints >= memo.hexsideConstraints and \
-                   hexsideConstraints & memo.hexsidesUsed == set():
-                    self.log("Memoized! Current constraints: %s, Memo constraints: %s, Memo hexsides: %s"\
-                             % (hexsideConstraints, memo.hexsideConstraints, memo.hexsidesUsed))
-                    return memo.routes, memo.revenues
-        
+        memoResult = self.checkMemo((train,city,trains), hexsideConstraints)
+        if memoResult: return memoResult
+
         # can only do a single step at a time --- need to give the
         # other trains a chance too!
         route = [city]
@@ -361,55 +421,7 @@ class MapSolver:
 
         explore()
 
-        # memoize result and deduplicate
-        if (train, city, trains) not in self.memoize:
-            self.memoize[ (train, city, trains) ] = sortedcontainers.SortedList()
-
-        hexsidesUsed = set()
-        for route in bestRoutes:
-            for loc in route:
-                if MapSolver.isHexside(loc):
-                    hexsidesUsed.add(MapSolver.canonicalize(loc))
-
-        memo = MapSolver.Memo(bestRoutes, bestRevenues,
-                              copy.copy(hexsideConstraints), hexsidesUsed)
-        memos = self.memoize[(train,city,trains)]
-
-        i = memos.bisect_left(memo)
-        self.log("Deduping from", i, "to", len(memos))
-        while i < len(memos):
-            memo2 = memos[i]
-            self.log("Considering", i, memo2)
-            pruned = False
-            
-            # because it is a sorted list, once we see a memo with
-            # worse revenue, we can stop looking
-            if memo2.revenues < bestRevenues:
-                break
-            # if this other memo is more restrictive and returns
-            # exactly the same result, delete it
-            elif memo2.revenues == bestRevenues:
-
-                if memo2.hexsidesUsed == memo.hexsidesUsed and \
-                   memo2.hexsideConstraints >= memo.hexsideConstraints:
-                    self.log("Pruned over-restrictive memo", memos, i)
-                    del memos[i]
-                    pruned = True
-
-                # # not sure we need this and it seems risky to get
-                # # rid of a less-constrained solution...
-                # elif memo2.hexsidesUsed >= memo.hexsides and \
-                #      memo2.hexsideConstraints <= memo.hexsideConstraints:
-                #     self.log("Pruned wasteful memo", memos, i)
-                #     del memos[i]
-                #     pruned = True
-                
-            # (we're doing weird c++ iterator because the del
-            # implicitly increments i)
-            if not pruned: i += 1
-
-        memos.add(memo)
-        self.log("Added memo: %s (%s total)" % (memo, len(memos)))
+        self.updateMemo((train,city,trains), bestRoutes, bestRevenues, hexsideConstraints)
         
         # self.recursionDepth += 1
         return bestRoutes, bestRevenues
