@@ -318,7 +318,7 @@ class MapSolver:
                 revenue += dstv.revenue
                 distance += dstv.distance
                 stops += dstv.stop
-                dstv.available[0] = False
+                if MapSolver.isHexside(dst): dstv.available[0] = False
 
                 addConstraint = False
                 if MapSolver.isHexside(dst):
