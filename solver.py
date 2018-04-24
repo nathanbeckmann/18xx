@@ -342,7 +342,7 @@ class MapSolver:
         distance = self.graph.vertices[city].distance
         stops = 1
         hexsidesUsed = set()
-        stopsHit = set()
+        stopsHit = set([tuple(city)])
         routes = sortedcontainers.SortedList()
 
         def explore():
