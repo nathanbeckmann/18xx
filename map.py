@@ -299,6 +299,6 @@ class MapWindow:
         self.canvas.create_text(4,0,text="Phase %d" % (self.map.getPhase()+1),
                                 fill=hex.HexWindow.color(self.map.getPhase()+1),
                                 font=("",24,"bold"), anchor=tkinter.NW)
-        self.canvas.create_text(4,32,text="Turn %d" % (len(self.map.undoLog)),
+        self.canvas.create_text(4,32,text="Turn %d" % (len(self.map.undoLog) + self.map.undoPosition + 1),
                                 fill="gray",
                                 font=("",16,"bold"), anchor=tkinter.NW)
