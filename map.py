@@ -289,9 +289,16 @@ class MapWindow:
 
         self.canvas = tkinter.Canvas(self.frame,
                                      width=self.width, height=self.height,
-                                     background="#605044")
+                                     background="#302522")
         self.canvas.pack(fill="both", expand=True) # place(x=0,y=0)
 
         for ri, ci, hx in self.map.getHexes():
             hw = hex.HexWindow(hx, ci, ri, self.HEXSIZE)
             hw.draw(self.canvas)
+
+        self.canvas.create_text(4,0,text="Phase %d" % (self.map.getPhase()+1),
+                                fill=hex.HexWindow.color(self.map.getPhase()+1),
+                                font=("",24,"bold"), anchor=tkinter.NW)
+        self.canvas.create_text(4,32,text="Turn %d" % (len(self.map.undoLog)),
+                                fill="gray",
+                                font=("",16,"bold"), anchor=tkinter.NW)

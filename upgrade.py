@@ -45,8 +45,8 @@ class UpgradeWindow:
 
             numTiles = self.map.getNumTilesAvailable(hx.key)
             if numTiles < 50:
-                canvas.create_text(16,16, text=("x%d" % numTiles),
-                                   fill='white', justify=tkinter.LEFT)
+                canvas.create_text(4,4, text=("x%d" % numTiles),
+                                   fill='white', anchor=tkinter.NW)
 
         if self.hex.downgradesTo != None:
             tkinter.Label(frame, text="Downgrade:", font=("", 16, "bold")).grid(row=0,column=0,columnspan=100)

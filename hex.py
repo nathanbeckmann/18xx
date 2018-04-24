@@ -226,7 +226,7 @@ class HexWindow:
     def center(self):
         return (self.x, self.y)
 
-    def color(self, type):
+    def color(type):
         if type == "base":
             return "#cccccc"
         elif type == 1:
@@ -248,7 +248,7 @@ class HexWindow:
 
         if self.hex.type != "off-board" or self.hex.label != "":
             canvas.create_polygon(*flatten(self.outline()),
-                                  fill=self.color(self.hex.type),
+                                  fill=HexWindow.color(self.hex.type),
                                   width=2, outline='white')
 
         # compute locations of cities and towns
@@ -350,15 +350,16 @@ class HexWindow:
                 for level, rev in enumerate(self.hex.revenue):
                     canvas.create_rectangle(*(location - (9,8)),
                                             *(location + (9,8)),
-                                            fill=self.color(level+1))
+                                            fill=HexWindow.color(level+1))
                     canvas.create_text(*location,
                                        fill='black',
                                        text = rev)
                     location += (20, 0)
         if self.hex.upgradeCost != 0:
-            location += (32, 0)
+            location += (40, 0)
             canvas.create_text(*location,
                                fill='red',
-                               text = '$%d' % self.hex.upgradeCost)
+                               text='$%d' % self.hex.upgradeCost,
+                               anchor=tkinter.NE)
 
         canvas.addtag_all("all")
