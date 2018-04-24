@@ -10,6 +10,7 @@ import copy
 import company
 import collections
 import sortedcontainers
+import time
 
 class MapSolver:
     def __init__(self, map, useMemo=True):
@@ -198,25 +199,147 @@ class MapSolver:
 
         self.buildGraph()
 
+        start = time.time()
         routes = self.findAllRoutes(max(company.trains))
-        print ("Found %s routes in %s steps:" % (len(routes), self.explorations))
-        for r in routes:
+        elapsed = time.time() - start
+        print ("Found %s routes in %s steps and %s seconds:" % (len(routes), self.explorations, elapsed))
+        for r in routes[:25]:
             print ("    Revenue: %s, Stops: %s, Hexsides: %s" % (r[0], [ (r,c) for r,c,s in r[2] if isinstance(s,str) ], r[3]))
+        if len(r) > 25:
+            print ("    ...")
 
-        revenues, routes = self.findBestRoutes(company.trains, routes)
+        start = time.time()
+        bestRevenues, bestRoutes = self.findBestRoutes(company.trains, routes)
+        elapsed = time.time() - start
 
         print ()
-        print ("Best revenue:", revenues)
+        print ("Best revenue:", bestRevenues)
         print ("Best routes for trains %s:" % company.trains)
-        for r in routes:
+        for r in bestRoutes:
             print ("    Revenue: %s, Stops: %s, Hexsides: %s" % (r[0], [ (r,c) for r,c,s in r[2] if isinstance(s,str) ], r[3]))
-        print ("(Tried %s combinations)" % (self.combinations))
+        print ("(Tried %s combinations in %s seconds)" % (self.combinations, elapsed))
+
+        ########################################
+
+        # TODO: WHY THE FUCK IS IT TAKING SO FEW ITERATIONS THE SECOND
+        # TIME YOU INVOKE IT? EVEN IF YOU RUN THE OTHER VERSION OF THE
+        # SOLVER!@!?
+
+        start = time.time()
+        bestRevenues, bestRoutes = self.findBestRoutes2(company.trains, routes)
+        elapsed = time.time() - start
+
+        print ()
+        print ("Best revenue:", bestRevenues)
+        print ("Best routes for trains %s:" % company.trains)
+        for r in bestRoutes:
+            print ("    Revenue: %s, Stops: %s, Hexsides: %s" % (r[0], [ (r,c) for r,c,s in r[2] if isinstance(s,str) ], r[3]))
+        print ("(Tried %s combinations in %s seconds)" % (self.combinations, elapsed))
 
     def log(self, *args):
         return
         print ("".join(["|   "]*self.recursionDepth), *args)
 
     def findBestRoutes(self, trains, routes):
+        self.combinations = 0
+        
+        # enumerate all combinations of routes, pruning out routes
+        # that contain hexsides already used by other routes
+
+        bestRevenues = 0
+        bestRoutes = []
+
+        # preprocess a DAG that shows how routes grow into each other.
+        # routes a,b are connected in the DAG if a is a strict subset
+        # of b, and there exists no c such that a is a subset of c and
+        # c is a subset of b.
+        #
+        # this lets us quickly prune out the routes that are
+        # conflicted with existing routes, since if b adds an
+        # already-used hexside, then all of b's successors will also
+        # use this hexside and we can ignore them.
+        #
+        # we mark which nodes in the graph have been visited as we
+        # traverse it to avoid repeating work.
+        #
+        # the cost of doing this approach is that we have to start
+        # with the smallest routes, so we cannot terminate early based
+        # on whether the maximum achievable revenues exceed the best
+        # known revenues.
+
+        # first construct the dag not worrying about intervening c
+        # routes
+        fulldag = {}
+        for a, ra in enumerate(routes):
+            fulldag[a] = set()
+            for b, rb in enumerate(routes):
+                if ra[3] < rb[3]:
+                    fulldag[a].add(b)
+        # print (fulldag)
+
+        # now compute the dag stripping out the unnecessary edges
+        dag = {}
+        for src, dsts in fulldag.items():
+            dag[src] = copy.copy(dsts)
+            for dst in dsts:
+                dag[src] -= fulldag[dst]
+        fulldag = None
+        # print (dag)
+
+        # find the entry points into the dag
+        successors = set()
+        for src, dsts in dag.items():
+            successors |= dsts
+        roots = set(range(len(routes))) - successors
+        # print (roots)
+
+        def trainLoop(hexsidesUsed, train, remainingTrains, revenuesSoFar, routesSoFar):
+            nonlocal bestRevenues, bestRoutes, routes
+
+            visited = [False] * len(routes)
+
+            def routeLoop(ris):
+                nonlocal bestRevenues, bestRoutes
+                for ri in ris:
+                    self.combinations += 1
+
+                    if visited[ri]: continue
+                    visited[ri] = True
+
+                    route = routes[ri]
+                    
+                    # all successors are strictly longer
+                    if route[1] > train: continue
+
+                    # all successors contain the same hexsides
+                    if route[3] & hexsidesUsed != set(): continue
+
+                    currRevenues = revenuesSoFar + route[0]
+                    currRoutes = routesSoFar + [route]
+
+                    if currRevenues > bestRevenues:
+                        bestRevenues = currRevenues
+                        bestRoutes = currRoutes
+
+                    if len(remainingTrains) > 0:
+                        trainLoop(hexsidesUsed | route[3],
+                                  remainingTrains[0],
+                                  remainingTrains[1:],
+                                  currRevenues,
+                                  currRoutes)
+
+                    routeLoop(dag[ri])
+
+            routeLoop(roots)
+
+        if len(trains) > 0:
+            trainLoop(set(), trains[0], trains[1:], 0, [])
+
+        return bestRevenues, bestRoutes
+        
+    def findBestRoutes2(self, trains, routes):
+        self.combinations = 0
+        
         # enumerate all combinations of routes, aborting once we know
         # the remaining routes can't possibly do better than the best
         # we've currently found
@@ -233,7 +356,7 @@ class MapSolver:
                 if r[1] <= t:
                     routesByTrain[t].append(r)
 
-        def loop(hexsidesUsed, currTrainRoutes, remainingTrains, revenuesSoFar, routesSoFar):
+        def trainLoop(hexsidesUsed, currTrainRoutes, remainingTrains, revenuesSoFar, routesSoFar):
             nonlocal bestRevenues, bestRoutes, routes
 
             bestRemainingRevenues = revenuesSoFar
@@ -259,18 +382,19 @@ class MapSolver:
                     bestRoutes = currRoutes
 
                 if len(remainingTrains) > 0:
-                    loop(hexsidesUsed | r[3],
-                         routesByTrain[remainingTrains[0]],
-                         remainingTrains[1:],
-                         currRevenues,
-                         currRoutes)
+                    trainLoop(hexsidesUsed | r[3],
+                              routesByTrain[remainingTrains[0]],
+                              remainingTrains[1:],
+                              currRevenues,
+                              currRoutes)
 
         if len(trains) > 0:
-            loop(set(), routesByTrain[trains[0]], trains[1:], 0, [])
+            trainLoop(set(), routesByTrain[trains[0]], trains[1:], 0, [])
 
         return bestRevenues, bestRoutes
-        
+    
     def findAllRoutes(self, maxDistance):
+        self.explorations = 0
         self.recursionDepth += 1
         self.log("findAllRoutes(%s)" % (maxDistance))
 
