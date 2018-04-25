@@ -57,7 +57,7 @@ class Map:
             def makeHex(key):
                 if key == "":
                     # empty off-board locations
-                    h = hex.Hex(self, key="", type=None)
+                    h = None # hex.Hex(self, key="", type=None)
                 elif key not in self.tiles.keys():
                     # 1st special case for basic cities to make
                     # writing map files easier...
@@ -77,10 +77,11 @@ class Map:
             for key in keys:
                 if key in processedTiles.keys(): continue
                 hx = makeHex(key)
-                processedTiles[hx.key] = hx
+                processedTiles[hx.key if hx else key] = hx
             self.tiles = processedTiles
 
             for t in self.tiles.values():
+                if t == None: continue
                 processedUpgradesTo = []
                 for u in t.upgradesTo:
                     processedUpgradesTo += [ self.tiles[str(u)] ]
@@ -131,7 +132,8 @@ class Map:
     def getHexes(self):
         return [ (ri, ci, self.getHex(ri, ci)) \
                  for ri in range(len(self.state.hexes)) \
-                 for ci in range(len(self.state.hexes[ri])) ]
+                 for ci in range(len(self.state.hexes[ri]))
+                 if self.getHex(ri,ci) != None ]
 
     def getHex(self, row, col):
         if row < len(self.state.hexes) and col < len(self.state.hexes[row]):
@@ -172,7 +174,7 @@ class Map:
         self.state.phase = max( \
             [x.type for row in self.state.hexes \
              for x in row \
-             if isinstance(x.type,int) ] \
+             if x != None and isinstance(x.type,int) ] \
             ) - 1
         
         self.log()

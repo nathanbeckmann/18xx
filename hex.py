@@ -247,7 +247,7 @@ class HexWindow:
             assert False
         
     def draw(self, canvas):
-        if self.hex.type == None: return
+        if self.hex == None: return
 
         if self.hex.type != "off-board" or self.hex.label != "":
             canvas.create_polygon(*flatten(self.outline()),
