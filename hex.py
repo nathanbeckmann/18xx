@@ -93,7 +93,32 @@ class Hex:
 
         self.canonicalizeConnections()
 
-    def getUpgrades(self):
+    @staticmethod
+    def step(r, c, hexside):
+        if isinstance(hexside,int):
+            # compute the facing hexside from the destination's
+            # perspective
+            delta = {
+                0: (-1, 1),
+                1: (0, 1),
+                2: (1, 1),
+                3: (1, 0),
+                4: (0, -1),
+                5: (-1, 0)
+            }[hexside]
+            dst = [r + delta[0], c + delta[1], hexside]
+            if delta[0] != 0 and r % 2 == 0: dst[1] -= 1
+
+            # the hexside we connect to is mirrored from the
+            # perspective of the destination
+            dst[2] += 3
+            dst[2] %= 6
+
+            return tuple(dst)
+        else:
+            return (r,c,hexside)
+
+    def getUpgrades(self, r, c, map):
         upgrades = []
 
         def preservesConnections(hx):
@@ -155,16 +180,25 @@ class Hex:
         def equivalentConnections(hx1, hx2):
             return hx1.connections == hx2.connections
 
+        def runsOffBoard(hx):
+            for conn in hx.connections:
+                dst = Hex.step(r, c, conn[0])
+                if map.getHex(*dst[:2]) == None: return True
+                dst = Hex.step(r, c, conn[1])
+                if map.getHex(*dst[:2]) == None: return True
+            return False
+
         for u in self.upgradesTo:
             rotations = []
-            for r in range(6):
+            for rot in range(6):
                 hx = copy.deepcopy(u)
-                hx.rotate(r)
+                hx.rotate(rot)
 
                 valid = True
                 valid = valid and preservesConnections(hx)
                 valid = valid and self.map.getNumTilesAvailable(u.key) > 0
                 valid = valid and not any([ equivalentConnections(hx, x) for x in rotations ])
+                valid = valid and not runsOffBoard(hx)
                 
                 if valid:
                     rotations += [hx]

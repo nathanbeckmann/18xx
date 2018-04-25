@@ -53,7 +53,7 @@ class UpgradeWindow:
             addOption(self.hex.downgradesTo, 1, 0)
 
         tkinter.Label(frame, text="Upgrades:", font=("", 16, "bold")).grid(row=2,column=0,columnspan=100)
-        for r, rot in enumerate(self.hex.getUpgrades()):
+        for r, rot in enumerate(self.hex.getUpgrades(*self.hexCoords, self.map)):
             for c, hx in enumerate(rot):
                 addOption(hx, 3+r, c)
             

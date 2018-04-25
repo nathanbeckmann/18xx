@@ -11,6 +11,7 @@ import company
 import collections
 import sortedcontainers
 import time
+import hex
 
 class MapSolver:
     def __init__(self, map, useMemo=True):
@@ -96,30 +97,6 @@ class MapSolver:
 
         def getStop(loc):
             return 0 if MapSolver.isHexside(loc) else 1
-
-        def step(src):
-            if isinstance(src[2], int):
-                # compute the facing hexside from the destination's
-                # perspective
-                delta = {
-                    0: (-1, 1),
-                    1: (0, 1),
-                    2: (1, 1),
-                    3: (1, 0),
-                    4: (0, -1),
-                    5: (-1, 0)
-                }[src[2]]
-                dst = [src[0] + delta[0], src[1] + delta[1], src[2]]
-                if delta[0] != 0 and src[0] % 2 == 0: dst[1] -= 1
-
-                # the hexside we connect to is mirrored from the
-                # perspective of the destination
-                dst[2] += 3
-                dst[2] %= 6
-
-                return tuple(dst)
-            else:
-                return src
             
         def explore(src):
             r,c,loc = src
@@ -144,7 +121,7 @@ class MapSolver:
                     else:
                         continue
 
-                    dst = step((src[0], src[1], next))
+                    dst = hex.Hex.step(src[0], src[1], next)
 
                     self.graph.edges[src] += [dst]
 
