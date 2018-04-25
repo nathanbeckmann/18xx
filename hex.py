@@ -27,6 +27,9 @@ class Hex:
 
         self.canonicalizeConnections()
 
+    def __repr__(self):
+        return "Hex:%s-%s" % (self.type, self.label)
+
     def canonicalizeConnections(self):
         # canonical form for connections is that the connection
         # list is sorted and each individual connection is sorted
