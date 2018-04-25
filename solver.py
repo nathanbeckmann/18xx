@@ -199,48 +199,18 @@ class MapSolver:
 
         self.buildGraph()
 
-        start = time.time()
         routes = self.findAllRoutes(max(company.trains))
-        elapsed = time.time() - start
-        print ("Found %s routes in %s steps and %s seconds:" % (len(routes), self.explorations, elapsed))
-        for r in routes[:25]:
-            print ("    Revenue: %s, Stops: %s, Hexsides: %s" % (r[0], [ (r,c) for r,c,s in r[2] if isinstance(s,str) ], r[3]))
-        if len(r) > 25:
-            print ("    ...")
+        
+        # bestRevenues, bestRoutes = self.findBestRoutes(company.trains, routes)
 
-        start = time.time()
-        bestRevenues, bestRoutes = self.findBestRoutes(company.trains, routes)
-        elapsed = time.time() - start
-
-        print ()
-        print ("Best revenue:", bestRevenues)
-        print ("Best routes for trains %s:" % company.trains)
-        for r in bestRoutes:
-            print ("    Revenue: %s, Stops: %s, Hexsides: %s" % (r[0], [ (r,c) for r,c,s in r[2] if isinstance(s,str) ], r[3]))
-        print ("(Tried %s combinations in %s seconds)" % (self.combinations, elapsed))
-
-        ########################################
-
-        # TODO: WHY THE FUCK IS IT TAKING SO FEW ITERATIONS THE SECOND
-        # TIME YOU INVOKE IT? EVEN IF YOU RUN THE OTHER VERSION OF THE
-        # SOLVER!@!?
-
-        start = time.time()
         bestRevenues, bestRoutes = self.findBestRoutes2(company.trains, routes)
-        elapsed = time.time() - start
-
-        print ()
-        print ("Best revenue:", bestRevenues)
-        print ("Best routes for trains %s:" % company.trains)
-        for r in bestRoutes:
-            print ("    Revenue: %s, Stops: %s, Hexsides: %s" % (r[0], [ (r,c) for r,c,s in r[2] if isinstance(s,str) ], r[3]))
-        print ("(Tried %s combinations in %s seconds)" % (self.combinations, elapsed))
 
     def log(self, *args):
         return
         print ("".join(["|   "]*self.recursionDepth), *args)
 
     def findBestRoutes(self, trains, routes):
+        start = time.time()
         self.combinations = 0
         
         # enumerate all combinations of routes, pruning out routes
@@ -335,9 +305,24 @@ class MapSolver:
         if len(trains) > 0:
             trainLoop(set(), trains[0], trains[1:], 0, [])
 
+        ########################################
+        naiveCombinations = 1
+        for t in trains:
+            naiveCombinations *= len(routesByTrain[t])
+        elapsed = time.time() - start
+        print ()
+        print ("Best revenue:", bestRevenues)
+        print ("Best routes for trains %s:" % trains)
+        for r in bestRoutes:
+            print ("    Revenue: %s, Stops: %s, Hexsides: %s" % (r[0], [ (r,c) for r,c,s in r[2] if isinstance(s,str) ], r[3]))
+        print ("(Tried %s combinations (%.2g%% of %s) in %4g seconds)" %
+               (self.combinations, 100. * self.combinations / naiveCombinations,
+                naiveCombinations, elapsed))
+        
         return bestRevenues, bestRoutes
         
     def findBestRoutes2(self, trains, routes):
+        start = time.time()
         self.combinations = 0
         
         # enumerate all combinations of routes, aborting once we know
@@ -356,13 +341,19 @@ class MapSolver:
                 if r[1] <= t:
                     routesByTrain[t].append(r)
 
-        def trainLoop(hexsidesUsed, currTrainRoutes, remainingTrains, revenuesSoFar, routesSoFar):
+        def trainLoop(hexsidesUsed, remainingTrains,
+                      revenuesSoFar, routesSoFar):
             nonlocal bestRevenues, bestRoutes, routes
 
+            if len(remainingTrains) > 0:
+                currTrainRoutes = routesByTrain[remainingTrains[0]]
+            else:
+                currTrainRoutes = []
+
             bestRemainingRevenues = revenuesSoFar
-            for t in remainingTrains:
+            for t in remainingTrains[1:]:
                 bestRemainingRevenues += routesByTrain[t][0][0]
-            
+                
             for r in currTrainRoutes:
                 self.combinations += 1
                 
@@ -383,17 +374,31 @@ class MapSolver:
 
                 if len(remainingTrains) > 0:
                     trainLoop(hexsidesUsed | r[3],
-                              routesByTrain[remainingTrains[0]],
                               remainingTrains[1:],
                               currRevenues,
                               currRoutes)
 
         if len(trains) > 0:
-            trainLoop(set(), routesByTrain[trains[0]], trains[1:], 0, [])
+            trainLoop(set(), trains, 0, [])
+
+        ########################################
+        elapsed = time.time() - start        
+        naiveCombinations = 1
+        for t in trains:
+            naiveCombinations *= len(routesByTrain[t])
+
+        print ("Best revenue:", bestRevenues)
+        print ("Best routes for trains %s:" % trains)
+        for r in bestRoutes:
+            print ("    Revenue: %s, Stops: %s, Hexsides: %s" % (r[0], [ (r,c) for r,c,s in r[2] if isinstance(s,str) ], r[3]))
+        print ("(Tried %s combinations (%.2g%% of %s) in %4g seconds)" %
+               (self.combinations, 100. * self.combinations / naiveCombinations,
+                naiveCombinations, elapsed))
 
         return bestRevenues, bestRoutes
     
     def findAllRoutes(self, maxDistance):
+        start = time.time()
         self.explorations = 0
         self.recursionDepth += 1
         self.log("findAllRoutes(%s)" % (maxDistance))
@@ -455,7 +460,17 @@ class MapSolver:
             routes = mergedRoutes
 
         self.recursionDepth -= 1
-        return routes[::-1]
+        routes = routes[::-1]
+
+        ########################################
+        elapsed = time.time() - start
+        print ("Found %s routes in %s steps and %4g seconds:" % (len(routes), self.explorations, elapsed))
+        for r in routes[:25]:
+            print ("    Revenue: %s, Stops: %s, Hexsides: %s" % (r[0], [ (r,c) for r,c,s in r[2] if isinstance(s,str) ], r[3]))
+        if len(r) > 25:
+            print ("    ...")
+               
+        return routes
 
     def findAllRoutesFromCity(self, maxDistance, city):
         self.recursionDepth += 1
