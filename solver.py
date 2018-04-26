@@ -337,20 +337,15 @@ class MapSolver:
             # TODO: this is very conservative; it's likely that these
             # best routes overlap, and we could get a better estimate
             # by first solving with this train not running
-            bestRemainingRevenues = 0
-            for t in remainingTrains[1:]:
-                bestRemainingRevenues += routesByTrain[t][0][0]
+            bestRemainingRevenues, _ = trainLoop(hexsidesUsed,
+                                                 remainingTrains[1:],
+                                                 revenuesSoFar + 0,
+                                                 routesSoFar + [])
                 
             for r in currTrainRoutes:
                 self.combinations += 1
                 
                 if r[3] & hexsidesUsed != set(): continue
-
-                if r[0] + bestRemainingRevenues + revenuesSoFar < globalBestRevenues:
-                    # print("Stopping early: %s + %s = %s < %s" %
-                    #       (r[0], bestRemainingRevenues,
-                    #        r[0] + bestRemainingRevenues, bestRevenues))
-                    break
 
                 currRevenues = r[0]
                 currRoutes = [r]
@@ -378,6 +373,13 @@ class MapSolver:
                     globalBestRevenues = revenuesSoFar + bestRevenues
                     globalBestRoutes = routesSoFar + bestRoutes
                     print ("Global revenues improved:", globalBestRevenues)
+
+                if r[0] + bestRemainingRevenues + revenuesSoFar < globalBestRevenues:
+                    # self.log("Stopping early: %s + %s + %s = %s < %s" %
+                    #          (r[0], bestRemainingRevenues, revenuesSoFar,
+                    #           r[0] + bestRemainingRevenues + revenuesSoFar,
+                    #           globalBestRevenues))
+                    break
 
             self.recursionDepth -= 1
             return bestRevenues, bestRoutes
