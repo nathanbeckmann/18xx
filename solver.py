@@ -323,13 +323,13 @@ class MapSolver:
 
         def trainLoop(hexsidesUsed, remainingTrains,
                       revenuesSoFar, routesSoFar):
+            if len(remainingTrains) == 0:
+                return 0, []
+            
             nonlocal globalBestRevenues, globalBestRoutes, routes
+            self.recursionDepth += 1
 
-            if len(remainingTrains) > 0:
-                currTrainRoutes = routesByTrain[remainingTrains[0]]
-            else:
-                currTrainRoutes = []
-
+            currTrainRoutes = routesByTrain[remainingTrains[0]]
             uniqueSolutionsForRemainingTrains = set()
             bestRevenues = 0
             bestRoutes = []
@@ -355,21 +355,20 @@ class MapSolver:
                 currRevenues = r[0]
                 currRoutes = [r]
 
-                if len(remainingTrains) > 0:
-                    remainingRevenues, remainingRoutes = \
-                        trainLoop(hexsidesUsed | r[3],
-                                  remainingTrains[1:],
-                                  revenuesSoFar + currRevenues,
-                                  routesSoFar + currRoutes)
+                remainingRevenues, remainingRoutes = \
+                    trainLoop(hexsidesUsed | r[3],
+                              remainingTrains[1:],
+                              revenuesSoFar + currRevenues,
+                              routesSoFar + currRoutes)
 
-                    # # TODO: Very few unique responses are being
-                    # # returned! We should be able to memoize very
-                    # # effectively.
-                    # numUniqueResponses = len(uniqueSolutionsForRemainingTrains)
-                    # uniqueSolutionsForRemainingTrains.add(tuple((x[0], tuple(x[3])) for x in remainingRoutes))
-                    # if len(uniqueSolutionsForRemainingTrains) > numUniqueResponses:
-                    #     print("".join([" "] * (10 - 2 * len(remainingTrains))),
-                    #           "%s unique responses" % len(uniqueSolutionsForRemainingTrains))
+                # # TODO: Very few unique responses are being
+                # # returned! We should be able to memoize very
+                # # effectively.
+                # numUniqueResponses = len(uniqueSolutionsForRemainingTrains)
+                # uniqueSolutionsForRemainingTrains.add(tuple((x[0], tuple(x[3])) for x in remainingRoutes))
+                # if len(uniqueSolutionsForRemainingTrains) > numUniqueResponses:
+                #     print("".join([" "] * (10 - 2 * len(remainingTrains))),
+                #           "%s unique responses" % len(uniqueSolutionsForRemainingTrains))
 
                 if currRevenues + remainingRevenues > bestRevenues:
                     bestRevenues = currRevenues + remainingRevenues
@@ -380,6 +379,7 @@ class MapSolver:
                     globalBestRoutes = routesSoFar + bestRoutes
                     print ("Global revenues improved:", globalBestRevenues)
 
+            self.recursionDepth -= 1
             return bestRevenues, bestRoutes
 
         if len(trains) > 0:
