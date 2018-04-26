@@ -371,16 +371,14 @@ class MapSolver:
                     #     print("".join([" "] * (10 - 2 * len(remainingTrains))),
                     #           "%s unique responses" % len(uniqueSolutionsForRemainingTrains))
 
-                currRevenues += remainingRevenues
-                currRoutes += remainingRoutes
+                if currRevenues + remainingRevenues > bestRevenues:
+                    bestRevenues = currRevenues + remainingRevenues
+                    bestRoutes = currRoutes + remainingRoutes
 
-                if currRevenues > bestRevenues:
-                    bestRevenues = currRevenues
-                    bestRoutes = currRoutes
-
-                if revenuesSoFar + currRevenues > globalBestRevenues:
-                    globalBestRevenues = revenuesSoFar + currRevenues
-                    globalBestRoutes = routesSoFar + currRoutes
+                if revenuesSoFar + bestRevenues > globalBestRevenues:
+                    globalBestRevenues = revenuesSoFar + bestRevenues
+                    globalBestRoutes = routesSoFar + bestRoutes
+                    print ("Global revenues improved:", globalBestRevenues)
 
             return bestRevenues, bestRoutes
 
