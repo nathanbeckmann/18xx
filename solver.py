@@ -21,6 +21,7 @@ class MapSolver:
         self.useMemo = useMemo
         self.explorations = 0
         self.combinations = 0
+        self.enableLog = False
 
     def findStartingCities(self, company):
         self.startingCities = []
@@ -183,8 +184,8 @@ class MapSolver:
         bestRevenues, bestRoutes = self.findBestRoutes2(company.trains, routes)
 
     def log(self, *args):
-        return
-        print ("".join(["|   "]*self.recursionDepth), *args)
+        if self.enableLog:
+            print ("".join(["|   "]*self.recursionDepth), *args)
 
     def findBestRoutes(self, trains, routes):
         start = time.time()
@@ -301,6 +302,7 @@ class MapSolver:
     def findBestRoutes2(self, trains, routes):
         start = time.time()
         self.combinations = 0
+        self.enableLog = False
 
         # process the biggest trains first
         trains = sorted(trains)[::-1]
