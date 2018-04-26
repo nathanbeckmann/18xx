@@ -306,8 +306,8 @@ class MapSolver:
         # the remaining routes can't possibly do better than the best
         # we've currently found
 
-        bestRevenues = 0
-        bestRoutes = []
+        globalBestRevenues = 0
+        globalBestRoutes = []
 
         # preprocess routes into lists for each train type
         routesByTrain = {}
@@ -320,14 +320,21 @@ class MapSolver:
 
         def trainLoop(hexsidesUsed, remainingTrains,
                       revenuesSoFar, routesSoFar):
-            nonlocal bestRevenues, bestRoutes, routes
+            nonlocal globalBestRevenues, globalBestRoutes, routes
 
             if len(remainingTrains) > 0:
                 currTrainRoutes = routesByTrain[remainingTrains[0]]
             else:
                 currTrainRoutes = []
 
-            bestRemainingRevenues = revenuesSoFar
+            uniqueSolutionsForRemainingTrains = set()
+            bestRevenues = 0
+            bestRoutes = []
+
+            # TODO: this is very conservative; it's likely that these
+            # best routes overlap, and we could get a better estimate
+            # by first solving with this train not running
+            bestRemainingRevenues = 0
             for t in remainingTrains[1:]:
                 bestRemainingRevenues += routesByTrain[t][0][0]
                 
@@ -336,24 +343,43 @@ class MapSolver:
                 
                 if r[3] & hexsidesUsed != set(): continue
 
-                if r[0] + bestRemainingRevenues < bestRevenues:
+                if r[0] + bestRemainingRevenues + revenuesSoFar < globalBestRevenues:
                     # print("Stopping early: %s + %s = %s < %s" %
                     #       (r[0], bestRemainingRevenues,
                     #        r[0] + bestRemainingRevenues, bestRevenues))
                     break
 
-                currRevenues = revenuesSoFar + r[0]
-                currRoutes = routesSoFar + [r]
+                currRevenues = r[0]
+                currRoutes = [r]
+
+                if len(remainingTrains) > 0:
+                    remainingRevenues, remainingRoutes = \
+                        trainLoop(hexsidesUsed | r[3],
+                                  remainingTrains[1:],
+                                  revenuesSoFar + currRevenues,
+                                  routesSoFar + currRoutes)
+
+                    # # TODO: Very few unique responses are being
+                    # # returned! We should be able to memoize very
+                    # # effectively.
+                    # numUniqueResponses = len(uniqueSolutionsForRemainingTrains)
+                    # uniqueSolutionsForRemainingTrains.add(tuple((x[0], tuple(x[3])) for x in remainingRoutes))
+                    # if len(uniqueSolutionsForRemainingTrains) > numUniqueResponses:
+                    #     print("".join([" "] * (10 - 2 * len(remainingTrains))),
+                    #           "%s unique responses" % len(uniqueSolutionsForRemainingTrains))
+
+                currRevenues += remainingRevenues
+                currRoutes += remainingRoutes
 
                 if currRevenues > bestRevenues:
                     bestRevenues = currRevenues
                     bestRoutes = currRoutes
 
-                if len(remainingTrains) > 0:
-                    trainLoop(hexsidesUsed | r[3],
-                              remainingTrains[1:],
-                              currRevenues,
-                              currRoutes)
+                if revenuesSoFar + currRevenues > globalBestRevenues:
+                    globalBestRevenues = revenuesSoFar + currRevenues
+                    globalBestRoutes = routesSoFar + currRoutes
+
+            return bestRevenues, bestRoutes
 
         if len(trains) > 0:
             trainLoop(set(), trains, 0, [])
@@ -364,15 +390,15 @@ class MapSolver:
         for t in trains:
             naiveCombinations *= len(routesByTrain[t])
 
-        print ("Best revenue:", bestRevenues)
+        print ("Best revenue:", globalBestRevenues)
         print ("Best routes for trains %s:" % trains)
-        for r in bestRoutes:
+        for r in globalBestRoutes:
             print ("    Revenue: %s, Stops: %s, Hexsides: %s" % (r[0], [ (r,c) for r,c,s in r[2] if isinstance(s,str) ], r[3]))
         print ("(Tried %s combinations (%.2g%% of %s) in %4g seconds)" %
                (self.combinations, 100. * self.combinations / naiveCombinations,
                 naiveCombinations, elapsed))
 
-        return bestRevenues, bestRoutes
+        return globalBestRevenues, globalBestRoutes
     
     def findAllRoutes(self, maxDistance):
         start = time.time()
