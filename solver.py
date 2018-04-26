@@ -187,6 +187,13 @@ class MapSolver:
         if self.enableLog:
             print ("".join(["|   "]*self.recursionDepth), *args)
 
+    # This version is currently unused, but I am keeping it around for
+    # now because the same ideas might be useful later. If we process
+    # the DAG starting from the most valuable routes, rather than the
+    # least, and halt exploration once every location in a route is
+    # unreachable, then we _may_ be able to prune the search space
+    # drastically. (Or maybe the DAG is too dense and we end up
+    # re-visting the same routes over and over, I don't know.)
     def findBestRoutes(self, trains, routes):
         start = time.time()
         self.combinations = 0
@@ -336,9 +343,8 @@ class MapSolver:
             bestRevenues = 0
             bestRoutes = []
 
-            # TODO: this is very conservative; it's likely that these
-            # best routes overlap, and we could get a better estimate
-            # by first solving with this train not running
+            # compute the maximum value of remaining trains by
+            # assuming this train does not run at all
             bestRemainingRevenues, _ = trainLoop(hexsidesUsed,
                                                  remainingTrains[1:],
                                                  revenuesSoFar + 0,
@@ -361,6 +367,11 @@ class MapSolver:
                 # # TODO: Very few unique responses are being
                 # # returned! We should be able to memoize very
                 # # effectively.
+                # #
+                # # The challenge is that we need to compute all of
+                # # the reachable hexsides so we can say whether a
+                # # given result can be returned early without any
+                # # add'l processing.
                 # numUniqueResponses = len(uniqueSolutionsForRemainingTrains)
                 # uniqueSolutionsForRemainingTrains.add(tuple((x[0], tuple(x[3])) for x in remainingRoutes))
                 # if len(uniqueSolutionsForRemainingTrains) > numUniqueResponses:
