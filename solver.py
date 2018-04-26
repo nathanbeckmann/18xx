@@ -301,6 +301,9 @@ class MapSolver:
     def findBestRoutes2(self, trains, routes):
         start = time.time()
         self.combinations = 0
+
+        # process the biggest trains first
+        trains = sorted(trains)[::-1]
         
         # enumerate all combinations of routes, aborting once we know
         # the remaining routes can't possibly do better than the best
