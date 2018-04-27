@@ -3,15 +3,19 @@
 import math
 import copy
 import numpy as np
+import solver
 from scipy import interpolate
 from misc import *
 
 class Hex:
-    def __init__(self, map, key, type, connections=[],
+    def __init__(self, map,
+                 key, type, connections=[],
                  label="", revenue=None, upgradeCost=0,
                  upgradesTo=[], cities=[], towns=0,
                  rotation = 0):
 
+        self.row = 0
+        self.col = 0
         self.key = key
         self.map = map
         self.connections = connections

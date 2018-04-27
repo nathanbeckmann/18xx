@@ -95,10 +95,14 @@ class Map:
 
         processTiles(set(self.tiles.keys()).union(set(flatten(map))))
 
-        for row in map:
+        for row, rowTiles in enumerate(map):
             hexrow = []
-            for col in row:
-                hexrow.append(copy.deepcopy(self.tiles[col]))
+            for col, tileType in enumerate(rowTiles):
+                hx = copy.deepcopy(self.tiles[tileType])
+                if hx != None:
+                    hx.row = row
+                    hx.col = col
+                hexrow.append(hx)
             self.state.hexes.append(hexrow)
 
         self.height = len(self.state.hexes)
@@ -177,6 +181,9 @@ class Map:
 
         # finally, update the hex and log the new game state
         self.state.hexes[row][col] = newHex
+        if newHex != None:
+            newHex.row = row
+            newHex.col = col
 
         # copy tokens
         if newHex.type != "base" and (oldHex.type == "base" or newHex.type > oldHex.type):
