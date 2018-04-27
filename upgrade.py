@@ -5,6 +5,7 @@ import copy
 import hex
 import map
 import tkinter
+import numpy as np
 
 class UpgradeWindow:
     def __init__(self, mapWindow, r, c):
@@ -12,6 +13,7 @@ class UpgradeWindow:
         self.mapWindow = mapWindow
         self.map = self.mapWindow.map
         self.hex = self.map.getHex(r, c)
+        self.cityRoot = None
 
     def go(self):
         self.root = tkinter.Toplevel(self.mapWindow.frame)
@@ -20,16 +22,31 @@ class UpgradeWindow:
         self.root.bind("<Key>", lambda event: self.close() if event.char == 'q' else None)
         # self.root.attributes("-topmost", True)
         
-        frame = tkinter.Frame(self.root)
-        frame.pack(fill="both", expand=True)
+        self.frame = tkinter.Frame(self.root)
+        self.frame.pack(fill="both", expand=True)
 
-        # MAX_UPGRADES_PER_ROW = 8
-        # nupgrades = 0
+        # city upgrades
+        if len(self.hex.cities) > 0:
+            tkinter.Label(self.frame, text="Cities:", font=("", 16, "bold")).grid(row=0,column=0,columnspan=100)
+            hw = hex.HexWindow(self.hex, 0, 0, self.mapWindow.HEXSIZE)
+            
+            for ci, city in enumerate(self.hex.cities):
+                w = 2*math.sin(math.pi/3)*self.mapWindow.HEXSIZE + self.mapWindow.PADDING
+                h = 2*self.mapWindow.HEXSIZE + self.mapWindow.PADDING * 2
+                canvas = tkinter.Canvas(self.frame,
+                                        width=w,
+                                        height=h)
+
+                hw.drawCity(canvas,np.array([w/2,h/2]),self.mapWindow.HEXSIZE,"city-%d" % ci)
+                
+                canvas.grid(row=1, column=ci)
+                canvas.bind("<Button-1>", lambda event, ci=ci: self.upgradeCityWindow(ci))
+            
         
         def addOption(hx, r, c):
             w = 2*math.sin(math.pi/3)*self.mapWindow.HEXSIZE + self.mapWindow.PADDING
             h = 1.5*self.mapWindow.HEXSIZE + self.mapWindow.PADDING * 2
-            canvas = tkinter.Canvas(frame,
+            canvas = tkinter.Canvas(self.frame,
                                     width=w,
                                     height=h,
                                     background="#888888")
@@ -49,13 +66,13 @@ class UpgradeWindow:
                                    fill='white', anchor=tkinter.NW)
 
         if self.hex.downgradesTo != None:
-            tkinter.Label(frame, text="Downgrade:", font=("", 16, "bold")).grid(row=0,column=0,columnspan=100)
-            addOption(self.hex.downgradesTo, 1, 0)
+            tkinter.Label(self.frame, text="Downgrade:", font=("", 16, "bold")).grid(row=2,column=0,columnspan=100)
+            addOption(self.hex.downgradesTo, 3, 0)
 
-        tkinter.Label(frame, text="Upgrades:", font=("", 16, "bold")).grid(row=2,column=0,columnspan=100)
+        tkinter.Label(self.frame, text="Upgrades:", font=("", 16, "bold")).grid(row=4,column=0,columnspan=100)
         for r, rot in enumerate(self.hex.getUpgrades(*self.hexCoords, self.map)):
             for c, hx in enumerate(rot):
-                addOption(hx, 3+r, c)
+                addOption(hx, 5+r, c)
             
         self.root.mainloop()
 
@@ -63,7 +80,54 @@ class UpgradeWindow:
         self.map.updateHex(*self.hexCoords, choice)
         self.close()
 
+    def upgradeCityWindow(self, ci):
+        print ("Updating city:", ci)
+        self.cityRoot = tkinter.Toplevel(self.mapWindow.frame)
+        self.cityRoot.wm_title("Update city stations")
+        # TODO: this should maybe be a cityroot.destroy instead of
+        # self.close
+        self.cityRoot.protocol("WM_DELETE_WINDOW", lambda: self.close())
+        self.cityRoot.bind("<Key>", lambda event: self.close() if event.char == 'q' else None)
+
+        self.cityFrame = tkinter.Frame(self.cityRoot)
+        self.cityFrame.pack(fill="both", expand=True)
+
+        MAX_COMPANIES_PER_ROW = 10
+        nrows = 1 + int((self.map.companies + MAX_COMPANIES_PER_ROW - 1) / MAX_COMPANIES_PER_ROW)
+        for si in range(len(self.hex.cities[ci])):
+            tkinter.Label(self.cityFrame, text="Station %d:" % si, font=("", 16, "bold")).grid(row=si * nrows,column=0,columnspan=100)
+
+            # Delete station option
+            SIZE = 80
+            canvas = tkinter.Canvas(self.cityFrame,
+                                    width=SIZE,
+                                    height=SIZE)
+
+            hex.HexWindow.drawStation(canvas,np.array([SIZE/2,SIZE/2]),SIZE/2,None)
+
+            canvas.grid(row=si * nrows, column=0)
+            canvas.bind("<Button-1>", lambda event, ci=ci, si=si: self.upgradeCity(ci,si,None))
+
+            # Company options
+            for company in range(self.map.companies):
+                canvas = tkinter.Canvas(self.cityFrame,
+                                        width=SIZE,
+                                        height=SIZE)
+
+                hex.HexWindow.drawStation(canvas,np.array([SIZE/2,SIZE/2]),SIZE/2,company)
+                
+                canvas.grid(row=si * nrows + int((company+1) / MAX_COMPANIES_PER_ROW),
+                            column=(company+1) % MAX_COMPANIES_PER_ROW)
+                canvas.bind("<Button-1>", lambda event, ci=ci, si=si, company=company: self.upgradeCity(ci,si,company))
+            
+        self.cityRoot.mainloop()
+
+    def upgradeCity(self, ci, si, company):
+        self.map.updateCity(*self.hexCoords, ci, si, company)
+        self.close()
+
     def close(self):
+        if self.cityRoot != None: self.cityRoot.destroy()
         self.root.destroy()
         self.mapWindow.redraw()
         self.mapWindow.upgradeWindow = None

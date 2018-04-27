@@ -32,6 +32,11 @@ class Map:
 
         map = obj["Map"]
         self.tiles = obj["Tiles"]
+        self.companies = obj["Companies"]
+        self.trains = {}
+        for phase, trains in obj["Trains"].items():
+            for train in trains:
+                self.trains[train] = int(phase)
 
         def processTiles(keys):
             for tile in self.tiles.values():
@@ -176,7 +181,32 @@ class Map:
              for x in row \
              if x != None and isinstance(x.type,int) ] \
             ) - 1
+
+        # copy tokens
+        if newHex.type != "base" and (oldHex.type == "base" or newHex.type > oldHex.type):
+            cityMap = [ i % len(newHex.cities) for i in range(len(oldHex.cities)) ]
+            cityIndex = [ 0 ] * len(newHex.cities)
+
+            for ci, city in enumerate(oldHex.cities):
+                for j in city:
+                    nci = cityMap[ci]
+                    newHex.cities[nci][cityIndex[nci]] = j
+                    cityIndex[nci] += 1
+            
+        self.log()
+
+    def updateCity(self, row, col, city, station, company):
+        # map state is immutable. always copy before modifying
+        self.state = copy.deepcopy(self.state)
         
+        hx = self.getHex(row, col)
+        if hx == None: return
+
+        assert city < len(hx.cities)
+        assert station < len(hx.cities[city])
+
+        hx.cities[city][station] = company
+
         self.log()
 
 import tkinter
@@ -304,7 +334,7 @@ class MapWindow:
             hw.draw(self.canvas)
 
         self.canvas.create_text(4,0,text="Phase %d" % (self.map.getPhase()+1),
-                                fill=hex.HexWindow.color(self.map.getPhase()+1),
+                                fill=hex.HexWindow.getHexColor(self.map.getPhase()+1),
                                 font=("",24,"bold"), anchor=tkinter.NW)
         self.canvas.create_text(4,32,text="Turn %d" % (len(self.map.undoLog) + self.map.undoPosition + 1),
                                 fill="gray",

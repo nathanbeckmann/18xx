@@ -263,7 +263,7 @@ class HexWindow:
     def center(self):
         return (self.x, self.y)
 
-    def color(type):
+    def getHexColor(type):
         if type == "base":
             return "#cccccc"
         elif type == 1:
@@ -279,13 +279,65 @@ class HexWindow:
         else:
             print (type)
             assert False
+
+    def getCityColor(city):
+        primaryColors = [ '#444444', 'red', 'green', 'blue', 'cyan', 'yellow', 'magenta' ]
+        secondaryColors = primaryColors + [ 'white' ]
+
+        if city == None:
+            return ['white']
+        elif city < len(primaryColors):
+            return [primaryColors[city]]
+        elif city < len(primaryColors) * len(secondaryColors):
+            primary = int(city / len(secondaryColors))
+            secondary = city % len(secondaryColors)
+            return [primaryColors[primary], secondaryColors[secondary]]
+        else:
+            assert False
         
+    def drawCircle(canvas, p, r, c, o, w=1, **kwargs):
+        tl = p - (r/2, r/2)
+        br = p + (r/2, r/2)
+        canvas.create_oval(*flatten([tl, br]), fill=c, outline=o, width=w, **kwargs)
+
+    def drawStation(canvas, p, r, city, **kwargs):
+        colors = HexWindow.getCityColor(city)
+        HexWindow.drawCircle(canvas, p, r, c=colors[0], o='black', w=1)
+        for c in colors[1:]:
+            HexWindow.drawCircle(canvas, p, r/len(colors), c='', o=c, w=r/len(colors)/3)
+
+    def drawCity(self, canvas, p, r, stop, **kwargs):
+        cidx = int(stop.split("-")[-1])
+        citysize = len(self.hex.cities[cidx])
+        if citysize > 1:
+            nrows = math.ceil(citysize / 2)
+            ncols = min(citysize, 2)
+            dim = np.array([ncols, nrows]) * r
+            canvas.create_rectangle(*(p-dim/2), *(p + dim/2),
+                                    fill='white', outline='black', width=1)
+
+            # move location to top-left station
+            # 1 ->    ()    0 offset from center
+            # 2 ->   ()()   0.5 offset ...
+            # 3 ->  ()()()  1 offset ...
+            # 4 -> ()()()() 1.5 offset ...
+            p[0] -= ((ncols-1)/2) * r
+            p[1] -= ((nrows-1)/2) * r
+
+        for c in range(citysize):
+            station = np.copy(p)
+            station[0] += r * int(c % 2)
+            station[1] += r * int(c / 2)
+
+            company = self.hex.cities[cidx][c]
+            HexWindow.drawStation(canvas, station, r, company)
+
     def draw(self, canvas):
         if self.hex == None: return
 
         if self.hex.type != "off-board" or self.hex.label != "":
             canvas.create_polygon(*flatten(self.outline()),
-                                  fill=HexWindow.color(self.hex.type),
+                                  fill=HexWindow.getHexColor(self.hex.type),
                                   width=2, outline='white')
 
         # compute locations of cities and towns
@@ -326,41 +378,14 @@ class HexWindow:
             canvas.create_line(*flatline, fill='black', width=self.r / 10)
 
         # unconnected cities and towns
-        def draw_circle(p, r, **kwargs):
-            tl = p - (r/2, r/2)
-            br = p + (r/2, r/2)
-            canvas.create_oval(*flatten([tl, br]), **kwargs)
-
         cityrad = self.r/2
         townrad = self.r/4
         
         for stop, location in stops.items():
             if 'city' in stop:
-                cidx = int(stop.split("-")[-1])
-                citysize = len(self.hex.cities[cidx])
-                if citysize > 1:
-                    nrows = math.ceil(citysize / 2)
-                    ncols = min(citysize, 2)
-                    dim = np.array([ncols, nrows]) * cityrad
-                    canvas.create_rectangle(*(location-dim/2), *(location + dim/2),
-                                            fill='white', outline='black', width=1)
-
-                    # move location to top-left station
-                    # 1 ->    ()    0 offset from center
-                    # 2 ->   ()()   0.5 offset ...
-                    # 3 ->  ()()()  1 offset ...
-                    # 4 -> ()()()() 1.5 offset ...
-                    location[0] -= ((ncols-1)/2) * cityrad
-                    location[1] -= ((nrows-1)/2) * cityrad
-                    
-                for c in range(citysize):
-                    station = np.copy(location)
-                    station[0] += cityrad * int(c % 2)
-                    station[1] += cityrad * int(c / 2)
-                    draw_circle(station, cityrad, fill="white", outline="black", width=1)
-
+                self.drawCity(canvas, location, cityrad, stop)
             elif 'town' in stop:
-                draw_circle(location, townrad, fill="black", outline="white", width=1)
+                HexWindow.drawCircle(canvas, location, townrad, c="black", o="white")
             else:
                 print (stop)
                 assert False
@@ -387,7 +412,7 @@ class HexWindow:
                 for level, rev in enumerate(self.hex.revenue):
                     canvas.create_rectangle(*(location - (9,8)),
                                             *(location + (9,8)),
-                                            fill=HexWindow.color(level+1))
+                                            fill=HexWindow.getHexColor(level+1))
                     canvas.create_text(*location,
                                        fill='black',
                                        text = rev)
