@@ -212,17 +212,12 @@ class Map:
 
         self.log()
 
-    def updateTrains(self, companyIndex, trains):
-        try:
-            self.companies[companyIndex] = [ int(t) for t in trains.split(',') ]
-            print ("Company %s has trains: %s" % (companyIndex, self.companies[companyIndex]))
-        except:
-            pass
-        
-        if self.companies[companyIndex] == []:
-            self.companies[companyIndex] = [0]
-
-        self.state.phase = max([self.trains[t] for t in c for c in self.companies])
+    def updatePhase(self):
+        self.state.phase = max([self.trains[t] \
+                                for c in self.companies \
+                                for t in c \
+                                if t in self.trains.keys()]) \
+                           - 1
 
 import tkinter
         
@@ -323,6 +318,22 @@ class MapWindow:
             self.upgradeWindow = upgrade.UpgradeWindow(self, r, c)
             self.upgradeWindow.go()
 
+    def updateTrains(self, companyIndex, trains):
+        try:
+            self.map.companies[companyIndex] = [ int(t) for t in trains.split(',') ]
+            print ("Company %s has trains: %s" % (companyIndex, self.map.companies[companyIndex]))
+        except:
+            pass
+        
+        if self.map.companies[companyIndex] == []:
+            self.map.companies[companyIndex] = [0]
+
+        oldPhase = self.map.getPhase()
+        self.map.updatePhase()
+        if self.map.getPhase() != oldPhase:
+            self.redraw()
+            print ("Entered phase: %d" % (self.map.getPhase()+1))
+
     def draw(self):
         self.width=int((self.map.width) * 2 * math.cos(math.pi/6) * self.HEXSIZE) + self.PADDING
         self.height=int(((self.map.height) * 1.5 + 1) * self.HEXSIZE) + self.PADDING
@@ -350,7 +361,7 @@ class MapWindow:
             self.companyFrame += [canvas]
 
             content = tkinter.StringVar()
-            content.trace("w", lambda name, index, mode, ci=ci, content=content: self.map.updateTrains(ci, content.get()))
+            content.trace("w", lambda name, index, mode, ci=ci, content=content: self.updateTrains(ci, content.get()))
             text = tkinter.Entry(self.frame,textvariable=content) # width=16,height=1)
             text.grid(row=ci+1, column=2)
             self.companyFrame += [text]
