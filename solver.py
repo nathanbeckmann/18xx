@@ -199,6 +199,8 @@ class MapSolver:
 
         bestRevenues, bestRoutes = self.findBestRoutes2(company.trains, routes)
 
+        return bestRevenues, [set([MapSolver.canonicalize(loc) for loc in r[2]]) for r in bestRoutes]
+
     def log(self, *args):
         if self.enableLog:
             print ("".join(["|   "]*self.recursionDepth), *args)

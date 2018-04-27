@@ -26,6 +26,7 @@ class Map:
         self.undoLog = [] # truncated upon change
         self.undoPosition = -1
         self.historyPosition = -1
+        self.solution = None
 
     def load(self, filename):
         with open(filename, 'r') as f:
@@ -259,7 +260,14 @@ class MapWindow:
         # hx = self.map.getHex(2,13)
         # hx.cities[0][0] = 0
         s = solver.MapSolver(self.map)
-        s.solve(company.Company(ci, self.map.companies[ci]))
+        self.map.solution = list(s.solve(company.Company(ci, self.map.companies[ci]))) + [ci]
+        self.redraw()
+        self.root.after(10000, lambda ci=ci: self.clearSolution(ci))
+
+    def clearSolution(self, ci):
+        if self.map.solution != None and self.map.solution[-1] == ci:
+            self.map.solution = None
+            self.redraw()
 
     def undo(self):
         self.map.undo()
@@ -389,4 +397,9 @@ class MapWindow:
         self.canvas.create_text(4,32,text="Turn %d" % (len(self.map.undoLog) + self.map.undoPosition + 1),
                                 fill="gray",
                                 font=("",16,"bold"), anchor=tkinter.NW)
+
+        if self.map.solution:
+            self.canvas.create_text(self.width/2,0,text="Revenue: %d" % (self.map.solution[0]),
+                                    fill="red",
+                                    font=("",24,"bold"), anchor=tkinter.N)
 

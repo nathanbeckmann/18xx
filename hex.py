@@ -382,7 +382,25 @@ class HexWindow:
 
             flatline = flatten(line)
             canvas.create_line(*flatline, fill='white', width=self.r / 10 + 2)
-            canvas.create_line(*flatline, fill='black', width=self.r / 10)
+
+            def findSolutionConnection():
+                if self.hex.map.solution != None:
+                    canon0 = solver.MapSolver.canonicalize((self.hex.row, self.hex.col, conn[0]))
+                    canon1 = solver.MapSolver.canonicalize((self.hex.row, self.hex.col, conn[1]))
+
+                    for ri, route in enumerate(self.hex.map.solution[1]):
+                        if canon0 in route and canon1 in route:
+                            return ri
+
+                    return None
+                else:
+                    return None
+
+            solutionConnection = findSolutionConnection()
+            solutionConnectionColors = [ '#ff0000', '#00ff00', '#0000ff',
+                                         '#00ffff', '#ff00ff', '#ffff00' ]
+            color = solutionConnectionColors[solutionConnection % len(solutionConnectionColors)] if solutionConnection != None else 'black'
+            canvas.create_line(*flatline, fill=color, width=self.r / 10)
 
         # unconnected cities and towns
         cityrad = self.r/2
