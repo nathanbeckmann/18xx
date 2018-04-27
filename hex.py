@@ -285,17 +285,20 @@ class HexWindow:
             assert False
 
     def getCityColor(city):
-        primaryColors = [ '#444444', 'red', 'green', 'blue', 'cyan', 'yellow', 'magenta' ]
+        primaryColors = [ '#444444', 'red', 'green', 'blue', 'cyan', 'yellow' ]
         secondaryColors = primaryColors + [ 'white' ]
+
+        pairedColors = [ (primaryColors[p], secondaryColors[s]) \
+                          for p in range(len(primaryColors)) \
+                          for s in range(len(secondaryColors)) \
+                          if p != s ]
 
         if city == None:
             return ['white']
         elif city < len(primaryColors):
             return [primaryColors[city]]
         elif city < len(primaryColors) * len(secondaryColors):
-            primary = int(city / len(secondaryColors))
-            secondary = city % len(secondaryColors)
-            return [primaryColors[primary], secondaryColors[secondary]]
+            return pairedColors[city - len(primaryColors)]
         else:
             assert False
         
