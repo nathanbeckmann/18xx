@@ -72,9 +72,7 @@ class Map:
                 elif "label:" == key[:6]:
                     # 2nd special case for basic cities to make
                     # writing map files easier...
-                    print (key, self.tiles[key])
                     h = hex.Hex(self, key=key[6:], label=key[6:], **self.tiles[key])
-                    print (h.key, h.label, h.upgradeCost)
                 else:
                     # normally described tiles
                     h = hex.Hex(self, key=key, **self.tiles[key])
@@ -253,12 +251,11 @@ class MapWindow:
         # if event.char == 's': self.solve()
 
         if event.char == 'x':
+            print ("Saved map state.")
             with open('test.save', 'wb') as f:
                 pickle.dump(self.map, f)
 
     def solve(self, ci):
-        # hx = self.map.getHex(2,13)
-        # hx.cities[0][0] = 0
         s = solver.MapSolver(self.map)
         self.map.solution = list(s.solve(company.Company(ci, self.map.companies[ci]))) + [ci]
         self.redraw()

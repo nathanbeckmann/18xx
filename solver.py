@@ -14,11 +14,9 @@ import time
 import hex
 
 class MapSolver:
-    def __init__(self, map, useMemo=True):
+    def __init__(self, map):
         self.map = map
         self.recursionDepth = 0
-        self.memoize = {}
-        self.useMemo = useMemo
         self.explorations = 0
         self.combinations = 0
         self.enableLog = False
