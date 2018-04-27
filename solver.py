@@ -450,8 +450,11 @@ class MapSolver:
 
         # try starting this train at every possible starting city,
         # merge the results
+        #
+        # TODO: prune this to the set of reachable cities? or explore
+        # forward and backward?
         allCities = [ x.loc for x in self.graph.vertices.values() if not MapSolver.isHexside(x.loc) ]
-        for city in self.startingCities:
+        for city in allCities:
             cityRoutes = self.findAllRoutesFromCity(maxDistance, city)
 
             # merge --- this ended up getting a little complicated...
