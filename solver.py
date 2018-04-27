@@ -42,11 +42,12 @@ class MapSolver:
             self.edges = {}
 
     class Vertex:
-        def __init__(self, loc, revenue, distance, stop):
+        def __init__(self, loc, revenue, distance, stop, blocked):
             self.loc = loc
             self.revenue = revenue
             self.distance = distance
             self.stop = stop
+            self.blocked = blocked
 
         def __repr__(self):
             return "rev: %s, dist: %s, stop: %s" % (self.revenue, self.distance, self.stop)
@@ -76,7 +77,7 @@ class MapSolver:
         else:
             return loc
 
-    def buildGraph(self):
+    def buildGraph(self, company):
         self.graph = MapSolver.Graph()
 
         def getDistance(loc):
@@ -98,7 +99,21 @@ class MapSolver:
 
         def getStop(loc):
             return 0 if MapSolver.isHexside(loc) else 1
-            
+
+        def getBlocked(loc, company):
+            if not MapSolver.isHexside(loc) and 'city' in loc[2]:
+                hx = self.map.getHex(loc[0], loc[1])
+                assert hx != None
+
+                cidx = int(loc[2].split("-")[-1])
+                city = hx.cities[cidx]
+
+                if None in city: return False
+                elif company.id in city: return False
+                else: return True
+            else:
+                return False
+                
         def explore(src):
             r,c,loc = src
             hx = self.map.getHex(r,c)
@@ -108,7 +123,8 @@ class MapSolver:
                 self.graph.vertices[src] = MapSolver.Vertex(src,
                                                             getRevenue(src),
                                                             getDistance(src),
-                                                            getStop(src))
+                                                            getStop(src),
+                                                            getBlocked(src,company))
                 self.graph.edges[src] = []
             
                 # find what this src connects to on the hex and
@@ -175,7 +191,7 @@ class MapSolver:
         
         self.findStartingCities(company)
 
-        self.buildGraph()
+        self.buildGraph(company)
 
         routes = self.findAllRoutes(max(company.trains))
         
@@ -543,8 +559,10 @@ class MapSolver:
                 if valid:
                     routes.add( (revenue, distance, copy.copy(route), copy.copy(hexsidesUsed)) )
                     
-                # now, try to extend the current route by recursing
-                explore()
+                # now, try to extend the current route by recursing,
+                # unless the city is blocked
+                if not dstv.blocked:
+                    explore()
 
                 # unwind, iterate
                 if MapSolver.isHexside(dst):
