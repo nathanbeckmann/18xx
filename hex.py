@@ -212,7 +212,6 @@ class Hex:
         return upgrades
 
 import map
-import widgets
 import tkinter
 
 class HexWindow:
