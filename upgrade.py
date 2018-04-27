@@ -92,8 +92,8 @@ class UpgradeWindow:
         self.cityFrame = tkinter.Frame(self.cityRoot)
         self.cityFrame.pack(fill="both", expand=True)
 
-        MAX_COMPANIES_PER_ROW = 10
-        nrows = 1 + int((self.map.companies + MAX_COMPANIES_PER_ROW - 1) / MAX_COMPANIES_PER_ROW)
+        MAX_COMPANIES_PER_ROW = 8
+        nrows = 1 + int((len(self.map.companies) + MAX_COMPANIES_PER_ROW - 1) / MAX_COMPANIES_PER_ROW)
         for si in range(len(self.hex.cities[ci])):
             tkinter.Label(self.cityFrame, text="Station %d:" % si, font=("", 16, "bold")).grid(row=si * nrows,column=0,columnspan=100)
 
@@ -109,7 +109,7 @@ class UpgradeWindow:
             canvas.bind("<Button-1>", lambda event, ci=ci, si=si: self.upgradeCity(ci,si,None))
 
             # Company options
-            for company in range(self.map.companies):
+            for company in range(len(self.map.companies)):
                 canvas = tkinter.Canvas(self.cityFrame,
                                         width=SIZE,
                                         height=SIZE)

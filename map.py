@@ -7,6 +7,7 @@ import copy
 import upgrade
 import solver, company
 import pickle
+import numpy as np
 from misc import *
 
 class Map:
@@ -32,7 +33,7 @@ class Map:
 
         map = obj["Map"]
         self.tiles = obj["Tiles"]
-        self.companies = obj["Companies"]
+        self.companies = [[0]] * obj["Companies"]
         self.trains = {}
         for phase, trains in obj["Trains"].items():
             for train in trains:
@@ -176,11 +177,6 @@ class Map:
 
         # finally, update the hex and log the new game state
         self.state.hexes[row][col] = newHex
-        self.state.phase = max( \
-            [x.type for row in self.state.hexes \
-             for x in row \
-             if x != None and isinstance(x.type,int) ] \
-            ) - 1
 
         # copy tokens
         if newHex.type != "base" and (oldHex.type == "base" or newHex.type > oldHex.type):
@@ -209,6 +205,18 @@ class Map:
 
         self.log()
 
+    def updateTrains(self, companyIndex, trains):
+        try:
+            self.companies[companyIndex] = [ int(t) for t in trains.split(',') ]
+            print ("Company %s has trains: %s" % (companyIndex, self.companies[companyIndex]))
+        except:
+            pass
+        
+        if self.companies[companyIndex] == []:
+            self.companies[companyIndex] = [0]
+
+        self.state.phase = max([self.trains[t] for t in c for c in self.companies])
+
 import tkinter
         
 class MapWindow:
@@ -218,7 +226,7 @@ class MapWindow:
     def __init__(self, map, hexsize=50):
         self.map = map
         self.upgradeWindow = None
-        self.useMemo = True
+        self.companyFrame = []
 
     def run(self):
         self.root = tkinter.Tk()
@@ -239,19 +247,17 @@ class MapWindow:
         # print ('Key press: ' + repr(event.char))
         if event.char == 'q' or event.char == 'Q': exit(0)
 
-        if event.char == 's': self.solve()
-
-        if event.char == 'm': self.useMemo = not self.useMemo
+        # if event.char == 's': self.solve()
 
         if event.char == 'x':
             with open('test.save', 'wb') as f:
                 pickle.dump(self.map, f)
 
-    def solve(self):
+    def solve(self, ci):
         # hx = self.map.getHex(2,13)
         # hx.cities[0][0] = 0
-        s = solver.MapSolver(self.map, self.useMemo)
-        s.solve(company.Company(0, [4,5,5]))
+        s = solver.MapSolver(self.map)
+        s.solve(company.Company(ci, self.map.companies[ci]))
 
     def undo(self):
         self.map.undo()
@@ -314,9 +320,34 @@ class MapWindow:
         self.width=int((self.map.width) * 2 * math.cos(math.pi/6) * self.HEXSIZE) + self.PADDING
         self.height=int(((self.map.height) * 1.5 + 1) * self.HEXSIZE) + self.PADDING
 
-        self.frame = tkinter.Frame(self.root, background="#605044") # , width=width, height=height)
+        self.frame = tkinter.Frame(self.root) # , width=width, height=height)
         self.frame.pack(fill="both", expand=True)
         
+        # draw companies
+        for widgets in self.companyFrame:
+            widgets.destroy()
+        
+        label = tkinter.Label(self.frame, text="Companies:", font=("", 16, "bold"))
+        label.grid(row=0,column=1,columnspan=2)
+
+        self.companyFrame = [label]
+        SIZE = 40
+
+        for ci, company in enumerate(self.map.companies):
+            # if company == None: continue
+
+            canvas = tkinter.Canvas(self.frame,width=SIZE,height=SIZE)
+            hex.HexWindow.drawStation(canvas,np.array([SIZE/2,SIZE/2]),SIZE/2,ci)
+            canvas.grid(row=ci+1, column=1)
+            canvas.bind("<Button-1>", lambda event, ci=ci: self.solve(ci))
+            self.companyFrame += [canvas]
+
+            content = tkinter.StringVar()
+            content.trace("w", lambda name, index, mode, ci=ci, content=content: self.map.updateTrains(ci, content.get()))
+            text = tkinter.Entry(self.frame,textvariable=content) # width=16,height=1)
+            text.grid(row=ci+1, column=2)
+            self.companyFrame += [text]
+
         self.canvas = None
         self.redraw()
         # self.canvas.pack(fill="both", expand=True) # place(x=0,y=0)
@@ -324,10 +355,11 @@ class MapWindow:
     def redraw(self):
         if self.canvas: self.canvas.destroy()
 
+        # draw map
         self.canvas = tkinter.Canvas(self.frame,
                                      width=self.width, height=self.height,
                                      background="#302522")
-        self.canvas.pack(fill="both", expand=True) # place(x=0,y=0)
+        self.canvas.grid(row=0,column=0,rowspan=100) # pack(fill="both", expand=True) # place(x=0,y=0)
 
         for ri, ci, hx in self.map.getHexes():
             hw = hex.HexWindow(hx, ci, ri, self.HEXSIZE)
@@ -339,3 +371,4 @@ class MapWindow:
         self.canvas.create_text(4,32,text="Turn %d" % (len(self.map.undoLog) + self.map.undoPosition + 1),
                                 fill="gray",
                                 font=("",16,"bold"), anchor=tkinter.NW)
+
