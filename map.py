@@ -8,6 +8,7 @@ import upgrade
 import solver, company
 import pickle
 import numpy as np
+import time
 from misc import *
 
 class Map:
@@ -257,12 +258,13 @@ class MapWindow:
 
     def solve(self, ci):
         s = solver.MapSolver(self.map)
-        self.map.solution = list(s.solve(company.Company(ci, self.map.companies[ci]))) + [ci]
+        solId = time.time()
+        self.map.solution = list(s.solve(company.Company(ci, self.map.companies[ci]))) + [solId]
         self.redraw()
-        self.root.after(10000, lambda ci=ci: self.clearSolution(ci))
+        self.root.after(10000, lambda solId=solId: self.clearSolution(solId))
 
-    def clearSolution(self, ci):
-        if self.map.solution != None and self.map.solution[-1] == ci:
+    def clearSolution(self, solId):
+        if self.map.solution != None and self.map.solution[-1] == solId:
             self.map.solution = None
             self.redraw()
 
