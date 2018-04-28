@@ -223,7 +223,7 @@ import tkinter
         
 class MapWindow:
     PADDING = 20
-    HEXSIZE = 50
+    HEXSIZE = 60
     
     def __init__(self, map, hexsize=50):
         self.map = map
@@ -368,8 +368,9 @@ class MapWindow:
             self.companyFrame += [canvas]
 
             content = tkinter.StringVar()
+            content.set(','.join([str(t) for t in company]))
             content.trace("w", lambda name, index, mode, ci=ci, content=content: self.updateTrains(ci, content.get()))
-            text = tkinter.Entry(self.frame,textvariable=content) # width=16,height=1)
+            text = tkinter.Entry(self.frame,textvariable=content, width=8) # width=16,height=1)
             text.grid(row=ci+1, column=2)
             self.companyFrame += [text]
 
