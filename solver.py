@@ -27,7 +27,7 @@ class MapSolver:
         for r, c, hx in self.map.getHexes():
             for ci, city in enumerate(hx.cities):
                 if company.id in city:
-                    self.startingCities.append( (r,c,"city-%d" % ci) )
+                    self.startingCities.append( (r,c,"c%d" % ci) )
         print ("Starting cities for company %s: %s" % (company.id, self.startingCities))
 
         self.startingCitiesSet = set(self.startingCities)
@@ -50,17 +50,13 @@ class MapSolver:
         def __repr__(self):
             return "rev: %s, dist: %s, stop: %s" % (self.revenue, self.distance, self.stop)
 
-    @staticmethod
-    def isHexside(loc):
-        return isinstance(loc[2], int)
-    
     # hexsides are really a single location; update them in the
     # vertex dictionary to use the same object
     @staticmethod
     def canonicalize(loc):
         # always use hexside 0,1,2 so there is a common name for
         # each side of a hexside
-        if MapSolver.isHexside(loc):
+        if Hex.isHexside(loc[2]):
             delta = {
                 0: (0, 0, 0),
                 1: (0, 0, 1),
@@ -80,11 +76,11 @@ class MapSolver:
 
         def getDistance(loc):
             # count cities and towns
-            return 0 if MapSolver.isHexside(loc) else 1
+            return 0 if Hex.isHexside(loc[2]) else 1
 
         def getRevenue(loc):
             # count cities and towns
-            if MapSolver.isHexside(loc):
+            if Hex.isHexside(loc[2]):
                 return 0
             else:
                 rev = self.map.getHex(loc[0], loc[1]).revenue
@@ -96,14 +92,15 @@ class MapSolver:
                     return rev[self.map.getPhase()]
 
         def getStop(loc):
-            return 0 if MapSolver.isHexside(loc) else 1
+            if "c" in loc or "t" in loc: return 1
+            else: return 0
 
         def getBlocked(loc, company):
-            if not MapSolver.isHexside(loc) and 'city' in loc[2]:
+            if MapSolver.isCity(loc[2]):
                 hx = self.map.getHex(loc[0], loc[1])
                 assert hx != None
 
-                cidx = int(loc[2].split("-")[-1])
+                cidx = int(loc[2][1:])
                 city = hx.cities[cidx]
 
                 if None in city: return False
@@ -451,7 +448,7 @@ class MapSolver:
         #
         # TODO: prune this to the set of reachable cities? or explore
         # forward and backward?
-        allCities = [ x.loc for x in self.graph.vertices.values() if not MapSolver.isHexside(x.loc) ]
+        allCities = [ x.loc for x in self.graph.vertices.values() if not Hex.isHexside(x.loc[2]) ]
         for city in allCities:
             cityRoutes = self.findAllRoutesFromCity(maxDistance, city)
 
@@ -534,7 +531,7 @@ class MapSolver:
                 dstv = self.graph.vertices[dst]
                 self.log("Step:", dst, dstv)
 
-                if MapSolver.isHexside(dst):
+                if Hex.isHexside(dst[2]):
                     candst = MapSolver.canonicalize(dst)
                     if candst in hexsidesUsed:
                         continue
@@ -551,7 +548,7 @@ class MapSolver:
                 revenue += dstv.revenue
                 distance += dstv.distance
                 stops += dstv.stop
-                if MapSolver.isHexside(dst):
+                if Hex.isHexside(dst[2]):
                     hexsidesUsed.add(candst)
                 else:
                     stopsHit.add(dst)
@@ -568,7 +565,7 @@ class MapSolver:
                     explore()
 
                 # unwind, iterate
-                if MapSolver.isHexside(dst):
+                if Hex.isHexside(dst[2]):
                     hexsidesUsed.remove(candst)
                 else:
                     stopsHit.remove(dst)

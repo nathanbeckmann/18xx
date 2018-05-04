@@ -11,7 +11,7 @@ class Hex:
     def __init__(self, map,
                  key, type, connections=[],
                  label="", revenue=None, upgradeCost=0,
-                 upgradesTo=[], cities=[], towns=0,
+                 upgradesTo=[], cities=[], towns=0, junctions=0,
                  rotation = 0):
 
         self.row = 0
@@ -27,12 +27,13 @@ class Hex:
         self.downgradesTo = None # previous hex in this position
         self.cities = cities
         self.towns = towns
+        self.junctions = junctions
         self.rotation = rotation
 
         self.canonicalizeConnections()
 
     def __repr__(self):
-        return "Hex:%s-%s" % (self.type, self.label)
+        return "Hex:%s" % (self.key)
 
     def canonicalizeConnections(self):
         # canonical form for connections is that the connection
@@ -79,6 +80,22 @@ class Hex:
     def stops(self):
         return len(self.cities) + self.towns
 
+    @staticmethod
+    def isHexside(loc):
+        return isinstance(loc, int)
+
+    @staticmethod
+    def isJunction(loc):
+        return isinstance(loc, str) and 'j' in loc
+
+    @staticmethod
+    def isTown(loc):
+        return isinstance(loc, str) and 't' in loc
+
+    @staticmethod
+    def isCity(loc):
+        return isinstance(loc, str) and 'c' in loc
+    
     def isUpgrade(self, upgrade):
         return upgrade.type in [ hx.type for hx in self.upgradesTo ]
 
@@ -123,7 +140,6 @@ class Hex:
             return (r,c,hexside)
 
     def getUpgrades(self, r, c, map):
-        upgrades = []
 
         def preservesConnections(hx):
 
@@ -134,12 +150,13 @@ class Hex:
             assert self.stops() <= 2
             assert self.stops() >= hx.stops()
 
-            selfstops  = [ "town-%d" % d for d in range(self.towns) ]
-            selfstops += [ "city-%d" % d for d in range(len(self.cities)) ]
-            hxstops  = [ "town-%d" % d for d in range(hx.towns) ]
-            hxstops += [ "city-%d" % d for d in range(len(hx.cities)) ]
+            selfstops  = [ "t%d" % d for d in range(self.towns) ]
+            selfstops += [ "c%d" % d for d in range(len(self.cities)) ]
+            hxstops  = [ "t%d" % d for d in range(hx.towns) ]
+            hxstops += [ "c%d" % d for d in range(len(hx.cities)) ]
 
             renames = []
+            # all permutations of old name to new name
             def generate(indices):
                 nonlocal renames
                 if len(indices) == len(selfstops):
@@ -152,13 +169,41 @@ class Hex:
                         generate(indices + [i])
             generate([])
 
+            def followJunctions(connections):
+                junctions = {}
+                for conn in connections:
+                    if Hex.isJunction(conn[0]):
+                        assert Hex.isHexside(conn[1])
+                        if conn[0] not in junctions.keys(): junctions[conn[0]] = []
+                        junctions[conn[0]] += [conn[1]]
+                        
+                    elif Hex.isJunction(conn[1]):
+                        assert Hex.isHexside(conn[0])
+                        if conn[1] not in junctions.keys(): junctions[conn[1]] = []
+                        junctions[conn[1]] += [conn[0]]
+
+                closure = []
+                for j in junctions.keys():
+                    for i1, loc1 in enumerate(junctions[j]):
+                        for i2, loc2 in enumerate(junctions[j][i1+1:]):
+                            closure += [ [loc1, loc2] ]
+                
+                for conn in connections:
+                    if not Hex.isJunction(conn[0]) and not Hex.isJunction(conn[1]):
+                        closure += [ conn ]
+
+                return closure
+
+            selfconnections = followJunctions(self.connections)
+            hxconnections = followJunctions(hx.connections)
+
             def preservesConnectionsRenamed(hx, rename):
                 # under a given renaming of cities, the tile fails to
                 # preserve connections if _any_ connection fails.
-                for curr in self.connections:
+                for curr in selfconnections:
                     assert len(curr) == 2
                     matched = False
-                    for new in hx.connections:
+                    for new in hxconnections:
                         assert len(new) == 2
 
                         curr0 = rename[curr[0]] if curr[0] in rename.keys() else curr[0]
@@ -179,6 +224,7 @@ class Hex:
             for rename in renames:
                 if preservesConnectionsRenamed(hx, rename):
                     return True
+
             return False
 
         def equivalentConnections(hx1, hx2):
@@ -192,6 +238,7 @@ class Hex:
                 if map.getHex(*dst[:2]) == None: return True
             return False
 
+        upgrades = []
         for u in self.upgradesTo:
             rotations = []
             for rot in range(6):
@@ -313,7 +360,7 @@ class HexWindow:
             HexWindow.drawCircle(canvas, p, r/len(colors), c='', o=c, w=r/len(colors)/3)
 
     def drawCity(self, canvas, p, r, stop, **kwargs):
-        cidx = int(stop.split("-")[-1])
+        cidx = int(stop[1:])
         citysize = len(self.hex.cities[cidx])
         if citysize > 1:
             nrows = math.ceil(citysize / 2)
@@ -348,18 +395,22 @@ class HexWindow:
 
         # compute locations of cities and towns
         stops = {}
-        stopsToDraw = self.hex.stops()
+        stopsToDraw = self.hex.stops() + self.hex.junctions
         r = self.r / 3 if stopsToDraw >= 2 else 0
         a = self.hex.rotation * math.pi / 3 - math.pi / 3
 
         for c in range(len(self.hex.cities)):
-            stops['city-%d' % c] = self.center() + np.array((math.cos(a), math.sin(a))) * r
+            stops['c%d' % c] = self.center() + np.array((math.cos(a), math.sin(a))) * r
             a += 2 * math.pi / stopsToDraw
 
         for t in range(self.hex.towns):
-            stops['town-%d' % t] = self.center() + np.array((math.cos(a), math.sin(a))) * r
+            stops['t%d' % t] = self.center() + np.array((math.cos(a), math.sin(a))) * r
             a += 2 * math.pi / stopsToDraw
 
+        for j in range(self.hex.junctions):
+            stops['j%d' % j] = self.center() + np.array((math.cos(a), math.sin(a))) * r
+            a += 2 * math.pi / stopsToDraw
+            
         # draw connections
         
         for conn in self.hex.connections:
@@ -373,7 +424,6 @@ class HexWindow:
                 line = [p, p-n/4]
             elif isinstance(end, str):
                 # connections to towns and cities
-                # for now, assume it always goes into the hex center...
                 line = [self.side(start), stops[end]]
             else:
                 line = self.connect(start, end)
@@ -406,10 +456,12 @@ class HexWindow:
         townrad = self.r/4
         
         for stop, location in stops.items():
-            if 'city' in stop:
+            if Hex.isCity(stop):
                 self.drawCity(canvas, location, cityrad, stop)
-            elif 'town' in stop:
+            elif Hex.isTown(stop):
                 HexWindow.drawCircle(canvas, location, townrad, c="black", o="white")
+            elif Hex.isJunction(stop):
+                pass
             else:
                 print (stop)
                 assert False
@@ -427,8 +479,8 @@ class HexWindow:
             if isinstance(self.hex.revenue, int):
                 location += (-32, 0)
                 canvas.create_oval(*(location - (10,10)),
-                                        *(location + (10,10)),
-                                        fill='black')
+                                   *(location + (10,10)),
+                                   fill='black')
                 canvas.create_text(*location, fill="white",
                                    text=self.hex.revenue)
             else:
