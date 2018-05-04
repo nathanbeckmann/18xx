@@ -34,7 +34,20 @@ class Map:
             obj = json.load(f)
 
         map = obj["Map"]
-        self.tiles = obj["Tiles"]
+        if "Transposed" in obj.keys() and obj["Transposed"] == "True":
+            newMap = []
+            width = max([ len(r) for r in map ])
+            for ci in range(width):
+                newRow = []
+                for ri in range(len(map)-1,-1,-1):
+                    if ci < len(map[ri]):
+                        newRow.append(map[ri][ci])
+                    else:
+                        newRow.append("")
+                newMap.append(newRow)
+            map = newMap
+                        
+        self.tiles = { k: v for k,v in obj["Tiles"].items() if "####" not in k }
         self.companies = [[0]] * obj["Companies"]
         self.trains = {}
         for phase, trains in obj["Trains"].items():
