@@ -14,9 +14,10 @@ class UpgradeWindow:
         self.map = self.mapWindow.map
         self.hex = self.map.getHex(r, c)
         self.cityRoot = None
+        self.HEXSIZE = 60
 
     def go(self):
-        self.root = tkinter.Toplevel(self.mapWindow.frame)
+        self.root = tkinter.Toplevel(self.mapWindow.root)
         self.root.wm_title("Modify hex: %s" % self.hex.label)
         self.root.protocol("WM_DELETE_WINDOW", lambda: self.close())
         self.root.bind("<Key>", lambda event: self.close() if event.char == 'q' else None)
@@ -28,24 +29,24 @@ class UpgradeWindow:
         # city upgrades
         if len(self.hex.cities) > 0:
             tkinter.Label(self.frame, text="Cities:", font=("", 16, "bold")).grid(row=0,column=0,columnspan=100)
-            hw = hex.HexWindow(self.hex, 0, 0, self.mapWindow.HEXSIZE)
+            hw = hex.HexWindow(self.hex, 0, 0, self.HEXSIZE)
             
             for ci, city in enumerate(self.hex.cities):
-                w = 2*math.sin(math.pi/3)*self.mapWindow.HEXSIZE + self.mapWindow.PADDING
-                h = 2*self.mapWindow.HEXSIZE + self.mapWindow.PADDING * 2
+                w = 2*math.sin(math.pi/3)*self.HEXSIZE + self.mapWindow.PADDING
+                h = 2*self.HEXSIZE + self.mapWindow.PADDING * 2
                 canvas = tkinter.Canvas(self.frame,
                                         width=w,
                                         height=h)
 
-                hw.drawCity(canvas,np.array([w/2,h/2]),self.mapWindow.HEXSIZE,"city-%d" % ci)
+                hw.drawCity(canvas,np.array([w/2,h/2]),self.HEXSIZE,"c%d" % ci)
                 
                 canvas.grid(row=1, column=ci)
                 canvas.bind("<Button-1>", lambda event, ci=ci: self.upgradeCityWindow(ci))
             
         
         def addOption(hx, r, c):
-            w = 2*math.sin(math.pi/3)*self.mapWindow.HEXSIZE + self.mapWindow.PADDING
-            h = 1.5*self.mapWindow.HEXSIZE + self.mapWindow.PADDING * 2
+            w = 2*math.sin(math.pi/3)*self.HEXSIZE + self.mapWindow.PADDING
+            h = 1.5*self.HEXSIZE + self.mapWindow.PADDING * 2
             canvas = tkinter.Canvas(self.frame,
                                     width=w,
                                     height=h,
@@ -57,7 +58,7 @@ class UpgradeWindow:
             canvas.grid(row=r, column=c)
             canvas.bind("<Button-1>", lambda event, hx=hx: self.updateHex(hx))
                 
-            hw = hex.HexWindow(hx, 0, 0, self.mapWindow.HEXSIZE)
+            hw = hex.HexWindow(hx, 0, 0, self.HEXSIZE)
             hw.draw(canvas)
 
             numTiles = self.map.getNumTilesAvailable(hx.key)

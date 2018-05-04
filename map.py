@@ -223,31 +223,21 @@ import tkinter
         
 class MapWindow:
     PADDING = 20
-    HEXSIZE = 60
+    HEXSIZE = 30
     
     def __init__(self, map, hexsize=50):
         self.map = map
         self.upgradeWindow = None
-        self.companyFrame = []
 
-    def run(self):
-        self.root = tkinter.Tk()
-        self.root.wm_title("18xx")
-        self.root.bind("<Key>", lambda event: self.key(event))
-        # self.root.bind("<Escape>", lambda event: exit(0))
-        self.root.bind("<Left>", lambda event: self.undo())
-        self.root.bind("<Right>", lambda event: self.redo())
-        self.root.bind("<Down>", lambda event: self.backward())
-        self.root.bind("<Up>", lambda event: self.forward())
-        self.root.bind("<Button-1>", lambda event: self.click(event))
-        self.draw()
+    def run(self):        
+        self.init()
         # self.root.after(10000, lambda: exit(0))
         self.root.mainloop()
 
     def key(self, event):
         # pass
         # print ('Key press: ' + repr(event.char))
-        # if event.char == 'q' or event.char == 'Q': exit(0)
+        if event.char == 'q' or event.char == 'Q': exit(0)
 
         # if event.char == 's': self.solve()
 
@@ -315,16 +305,6 @@ class MapWindow:
 
         return row, col
 
-    def click(self, event):
-        r, c = self.pixelToHex(event.x, event.y)
-
-        print ("Click at: (%d, %d) --> (%d, %d)" % (event.x, event.y, r, c))
-
-        if self.map.getHex(r, c) != None:
-            if self.upgradeWindow != None: self.upgradeWindow.close()
-            self.upgradeWindow = upgrade.UpgradeWindow(self, r, c)
-            self.upgradeWindow.go()
-
     def updateTrains(self, companyIndex, trains):
         try:
             self.map.companies[companyIndex] = [ int(t) for t in trains.split(',') ]
@@ -341,65 +321,146 @@ class MapWindow:
             self.redraw()
             print ("Entered phase: %d" % (self.map.getPhase()+1))
 
-    def draw(self):
+    def init(self):
         self.width=int((self.map.width) * 2 * math.cos(math.pi/6) * self.HEXSIZE) + self.PADDING
         self.height=int(((self.map.height) * 1.5 + 1) * self.HEXSIZE) + self.PADDING
-
-        self.frame = tkinter.Frame(self.root) # , width=width, height=height)
-        self.frame.pack(fill="both", expand=True)
         
+        self.root = tkinter.Tk()
+        self.root.wm_title("18xx")
+        self.root.bind("<Key>", lambda event: self.key(event))
+        # self.root.bind("<Escape>", lambda event: exit(0))
+        self.root.bind("<Left>", lambda event: self.undo())
+        self.root.bind("<Right>", lambda event: self.redo())
+        self.root.bind("<Down>", lambda event: self.backward())
+        self.root.bind("<Up>", lambda event: self.forward())
+        self.root.rowconfigure(0, weight=1)
+        self.root.columnconfigure(0, weight=1)
+
+        # Top text
+        infoFrame = tkinter.Frame(self.root)
+        infoFrame.pack(fill=tkinter.X)
+
+        self.phaseLabelText = tkinter.StringVar()
+        self.phaseLabel = tkinter.Label(infoFrame, textvariable=self.phaseLabelText)
+        self.phaseLabel.pack(side=tkinter.LEFT, fill=tkinter.X, anchor=tkinter.W, expand=True)
+
+        self.turnLabelText = tkinter.StringVar()
+        self.turnLabel = tkinter.Label(infoFrame, textvariable=self.turnLabelText)
+        self.turnLabel.pack(side=tkinter.LEFT, fill=tkinter.X, anchor=tkinter.CENTER, expand=True)
+
+        self.solutionLabelText = tkinter.StringVar()
+        self.solutionLabel = tkinter.Label(infoFrame, textvariable=self.solutionLabelText)
+        self.solutionLabel.pack(side=tkinter.LEFT, fill=tkinter.X, anchor=tkinter.E, expand=True)
+
+        # map
+        mapFrame = tkinter.Frame(self.root) # width=self.width, height=self.height)
+        mapFrame.pack(fill=tkinter.BOTH, expand=True)
+
         # draw companies
-        for widgets in self.companyFrame:
-            widgets.destroy()
+        companyFrame = tkinter.Frame(self.root)
+        companyFrame.pack(side=tkinter.LEFT, fill=tkinter.Y)
         
-        label = tkinter.Label(self.frame, text="Companies:", font=("", 16, "bold"))
-        label.grid(row=0,column=1,columnspan=2)
+        # label = tkinter.Label(companyFrame, text="Companies:", font=("", 16, "bold"))
+        # label.pack() # (row=0,column=1,columnspan=2)
 
-        self.companyFrame = [label]
         SIZE = 40
+        COMPANIESPERROW = 12
 
         for ci, company in enumerate(self.map.companies):
             # if company == None: continue
+            cf = tkinter.Frame(companyFrame)
 
-            canvas = tkinter.Canvas(self.frame,width=SIZE,height=SIZE)
+            canvas = tkinter.Canvas(cf,width=SIZE,height=SIZE)
             hex.HexWindow.drawStation(canvas,np.array([SIZE/2,SIZE/2]),SIZE/2,ci)
-            canvas.grid(row=ci+1, column=1)
+            canvas.pack(side=tkinter.LEFT) # grid(row=1, column=2*ci)
             canvas.bind("<Button-1>", lambda event, ci=ci: self.solve(ci))
-            self.companyFrame += [canvas]
 
             content = tkinter.StringVar()
             content.set(','.join([str(t) for t in company]))
             content.trace("w", lambda name, index, mode, ci=ci, content=content: self.updateTrains(ci, content.get()))
-            text = tkinter.Entry(self.frame,textvariable=content, width=8) # width=16,height=1)
-            text.grid(row=ci+1, column=2)
-            self.companyFrame += [text]
-
-        self.canvas = None
-        self.redraw()
-        # self.canvas.pack(fill="both", expand=True) # place(x=0,y=0)
-
-    def redraw(self):
-        if self.canvas: self.canvas.destroy()
+            text = tkinter.Entry(cf,textvariable=content, width=8) # width=16,height=1)
+            text.pack(side=tkinter.LEFT)
+            
+            cf.grid(row=int(ci / COMPANIESPERROW), column=ci % COMPANIESPERROW)
 
         # draw map
-        self.canvas = tkinter.Canvas(self.frame,
+        self.canvas = tkinter.Canvas(mapFrame,
                                      width=self.width, height=self.height,
-                                     background="#302522")
-        self.canvas.grid(row=0,column=0,rowspan=100) # pack(fill="both", expand=True) # place(x=0,y=0)
+                                     background="#605044")
+        self.canvas.pack(side=tkinter.LEFT, expand=True, fill=tkinter.BOTH) #, row=0, column=0, rowspan=100)
+        
+        self.canvas.bind('<B1-Motion>',     self.moveTo)
+        self.canvas.bind('<ButtonPress-1>', self.moveFrom)
+        self.canvas.bind("<ButtonRelease-1>", lambda event: self.click(event))
+        self.canvas.bind('<MouseWheel>', self.wheel)  # with Windows and MacOS, but not Linux
+        self.canvas.bind('<Button-5>',   self.wheel)  # only with Linux, wheel scroll down
+        self.canvas.bind('<Button-4>',   self.wheel)  # only with Linux, wheel scroll up
+        # self.canvas.bind('<Configure>', lambda event: self.canvas.config(width=event.width-2, height=event.height-2))
+        
+        self.redraw()
 
+    def redraw(self):
+        # redraw map
+        self.canvas.delete('all')
+        
         for ri, ci, hx in self.map.getHexes():
             hw = hex.HexWindow(hx, ci, ri, self.HEXSIZE)
             hw.draw(self.canvas)
 
-        self.canvas.create_text(4,0,text="Phase %d" % (self.map.getPhase()+1),
-                                fill=hex.HexWindow.getHexColor(self.map.getPhase()+1),
-                                font=("",24,"bold"), anchor=tkinter.NW)
-        self.canvas.create_text(4,32,text="Turn %d" % (len(self.map.undoLog) + self.map.undoPosition + 1),
-                                fill="gray",
-                                font=("",16,"bold"), anchor=tkinter.NW)
+        # update info
+        self.phaseLabelText.set("Phase %d" % (self.map.getPhase() + 1))
+        self.phaseLabel.config(font=("",16,"bold"), fg=hex.HexWindow.getHexColor(self.map.getPhase()+1))
+        self.turnLabelText.set("Turn %d" % (len(self.map.undoLog) + self.map.undoPosition + 1))
+        self.turnLabel.config(font=("",16,"bold"), fg="gray")
 
         if self.map.solution:
-            self.canvas.create_text(self.width/2,0,text="Revenue: %d" % (self.map.solution[0]),
-                                    fill="red",
-                                    font=("",24,"bold"), anchor=tkinter.N)
+            self.solutionLabelText.set("Revenue: %d" % (self.map.solution[0]))
+        else:
+            self.solutionLabelText.set("")
+        self.solutionLabel.config(fg="red", font=("",16,"bold"))
+
+    def moveFrom(self, event):
+        self.dragStart = np.array((event.x, event.y))
+        self.canvas.scan_mark(event.x, event.y)
+
+    def moveTo(self, event):
+        self.canvas.scan_dragto(event.x, event.y, gain=1)
+
+    def wheel(self, event):
+        # Respond to Linux (event.num) or Windows (event.delta) wheel event
+        ZOOMSTEP = 1.1
+        scale = 1
+        if event.num == 5 or event.delta == -120:  # scroll down
+            scale /= ZOOMSTEP
+        if event.num == 4 or event.delta == 120:  # scroll up
+            scale *= ZOOMSTEP
+        self.HEXSIZE *= scale
+
+        # the premise here is that canvasx/y is just doing a translation...
+        self.canvas.scan_mark(event.x, event.y)
+        delta = np.array((self.canvas.canvasx(0), self.canvas.canvasy(0)))
+
+        vorigscreen = np.array((event.x, event.y))
+        vorigcanvas = vorigscreen + delta
+        vzoomcanvas = vorigcanvas / scale
+        vzoomscreen = vzoomcanvas - delta
+        self.canvas.scan_dragto(int(vzoomscreen[0]), int(vzoomscreen[1]), gain=1)
+        
+        self.redraw()
+        # self.canvas.scale('all', x, y, scale, scale)  # rescale all canvas objects
+    
+    def click(self, event):
+        delta = np.array((event.x, event.y)) - self.dragStart
+        if np.sum(delta**2) > self.HEXSIZE: return
+        
+        r, c = self.pixelToHex(self.canvas.canvasx(event.x), self.canvas.canvasy(event.y))
+
+        print ("Click at: (%d, %d) --> (%d, %d)" % (event.x, event.y, r, c))
+
+        if self.map.getHex(r, c) != None:
+            if self.upgradeWindow != None:
+                self.upgradeWindow.close()
+                self.upgradeWindow = None
+            self.upgradeWindow = upgrade.UpgradeWindow(self, r, c)
+            self.upgradeWindow.go()
 
