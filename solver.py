@@ -50,37 +50,16 @@ class MapSolver:
         def __repr__(self):
             return "rev: %s, dist: %s, stop: %s" % (self.revenue, self.distance, self.stop)
 
-    # hexsides are really a single location; update them in the
-    # vertex dictionary to use the same object
-    @staticmethod
-    def canonicalize(loc):
-        # always use hexside 0,1,2 so there is a common name for
-        # each side of a hexside
-        if Hex.isHexside(loc[2]):
-            delta = {
-                0: (0, 0, 0),
-                1: (0, 0, 1),
-                2: (0, 0, 2),
-                3: (1, 0, 0),
-                4: (0, -1, 1),
-                5: (-1, 0, 2)
-                }[loc[2]]
-            res = [loc[0] + delta[0], loc[1] + delta[1], delta[2]]
-            if delta[0] != 0 and loc[0] % 2 == 0: res[1] -= 1
-            return tuple(res)
-        else:
-            return loc
-
     def buildGraph(self, company):
         self.graph = MapSolver.Graph()
 
         def getDistance(loc):
             # count cities and towns
-            return 0 if Hex.isHexside(loc[2]) else 1
+            return 0 if hex.Hex.isHexside(loc[2]) else 1
 
         def getRevenue(loc):
             # count cities and towns
-            if Hex.isHexside(loc[2]):
+            if hex.Hex.isHexside(loc[2]):
                 return 0
             else:
                 rev = self.map.getHex(loc[0], loc[1]).revenue
@@ -96,7 +75,7 @@ class MapSolver:
             else: return 0
 
         def getBlocked(loc, company):
-            if MapSolver.isCity(loc[2]):
+            if hex.Hex.isCity(loc[2]):
                 hx = self.map.getHex(loc[0], loc[1])
                 assert hx != None
 
@@ -157,7 +136,7 @@ class MapSolver:
 
         newvertices = {}
         for loc in self.graph.vertices.keys():
-            canloc = MapSolver.canonicalize(loc)
+            canloc = hex.Hex.canonicalize(loc)
             if canloc in self.graph.vertices.keys():
                 newvertices[loc] = self.graph.vertices[canloc]
             else:
@@ -194,7 +173,7 @@ class MapSolver:
 
         bestRevenues, bestRoutes = self.findBestRoutes2(company.trains, routes)
 
-        return bestRevenues, [set([MapSolver.canonicalize(loc) for loc in r[2]]) for r in bestRoutes]
+        return bestRevenues, [set([hex.Hex.canonicalize(loc) for loc in r[2]]) for r in bestRoutes]
 
     def log(self, *args):
         if self.enableLog:
@@ -448,7 +427,7 @@ class MapSolver:
         #
         # TODO: prune this to the set of reachable cities? or explore
         # forward and backward?
-        allCities = [ x.loc for x in self.graph.vertices.values() if not Hex.isHexside(x.loc[2]) ]
+        allCities = [ x.loc for x in self.graph.vertices.values() if not hex.Hex.isHexside(x.loc[2]) ]
         for city in allCities:
             cityRoutes = self.findAllRoutesFromCity(maxDistance, city)
 
@@ -531,8 +510,8 @@ class MapSolver:
                 dstv = self.graph.vertices[dst]
                 self.log("Step:", dst, dstv)
 
-                if Hex.isHexside(dst[2]):
-                    candst = MapSolver.canonicalize(dst)
+                if hex.Hex.isHexside(dst[2]):
+                    candst = hex.Hex.canonicalize(dst)
                     if candst in hexsidesUsed:
                         continue
                 else:
@@ -548,7 +527,7 @@ class MapSolver:
                 revenue += dstv.revenue
                 distance += dstv.distance
                 stops += dstv.stop
-                if Hex.isHexside(dst[2]):
+                if hex.Hex.isHexside(dst[2]):
                     hexsidesUsed.add(candst)
                 else:
                     stopsHit.add(dst)
@@ -565,7 +544,7 @@ class MapSolver:
                     explore()
 
                 # unwind, iterate
-                if Hex.isHexside(dst[2]):
+                if hex.Hex.isHexside(dst[2]):
                     hexsidesUsed.remove(candst)
                 else:
                     stopsHit.remove(dst)

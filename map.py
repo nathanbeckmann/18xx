@@ -28,6 +28,7 @@ class Map:
         self.undoPosition = -1
         self.historyPosition = -1
         self.solution = None
+        self.blocked = set()
 
     def load(self, filename):
         with open(filename, 'r') as f:
@@ -54,7 +55,11 @@ class Map:
             for train in trains:
                 self.trains[train] = int(phase)
 
+        if "Blocked" in obj.keys():
+            self.blocked = set( [ tuple(hex.Hex.canonicalize(loc)) for loc in obj["Blocked"] ] )
+
         def processTiles(keys):
+            # reformat cities into a list of company stations
             for tile in self.tiles.values():
                 if "cities" not in tile.keys(): continue
                 newcities = []
@@ -62,14 +67,24 @@ class Map:
                     newcities += [ [None] * citysize ]
                 tile["cities"] = newcities
 
+            # follow 'extends' in tiles until a fixed point --- don't
+            # do any cycles!
+            changed = True
+            while changed:
+                changed = False
+                for tile in self.tiles.values():
+                    if "extends" in tile.keys():
+                        assert tile["extends"] in self.tiles.keys()
+                        for k, v in self.tiles[tile["extends"]].items():
+                            if k not in tile.keys():
+                                tile[k] = v
+                                changed = True
+                                
             for tile in self.tiles.values():
                 if "extends" in tile.keys():
-                    assert tile["extends"] in self.tiles.keys()
-                    for k, v in self.tiles[tile["extends"]].items():
-                        if k not in tile.keys():
-                            tile[k] = v
                     del tile["extends"]
 
+            # update tile counts
             for key, tile in self.tiles.items():
                 if "num" in tile.keys():
                     self.state.tileLimits[key] = tile["num"]
@@ -164,6 +179,9 @@ class Map:
         else:
             return None
 
+    def isBlocked(self, row, col, side):
+        return hex.Hex.canonicalize((row, col, side)) in self.blocked
+
     def getPhase(self):
         return self.state.phase
 
@@ -236,7 +254,7 @@ import tkinter
         
 class MapWindow:
     PADDING = 20
-    HEXSIZE = 30
+    HEXSIZE = 75
     
     def __init__(self, map, hexsize=50):
         self.map = map
@@ -248,16 +266,19 @@ class MapWindow:
         self.root.mainloop()
 
     def key(self, event):
-        # pass
         # print ('Key press: ' + repr(event.char))
+        
         if event.char == 'q' or event.char == 'Q': exit(0)
-
-        # if event.char == 's': self.solve()
 
         if event.char == 'x':
             print ("Saved map state.")
             with open('test.save', 'wb') as f:
                 pickle.dump(self.map, f)
+
+        if event.char == '-':
+            self.zoom(1./1.25, self.root.winfo_width() / 2, self.root.winfo_height() / 2)
+        if event.char == '+' or event.char == '=':
+            self.zoom(1.25, self.root.winfo_width() / 2, self.root.winfo_height() / 2)
 
     def solve(self, ci):
         s = solver.MapSolver(self.map)
@@ -415,10 +436,19 @@ class MapWindow:
     def redraw(self):
         # redraw map
         self.canvas.delete('all')
+
+        hws = {}
         
         for ri, ci, hx in self.map.getHexes():
             hw = hex.HexWindow(hx, ci, ri, self.HEXSIZE)
             hw.draw(self.canvas)
+            hws[(ri,ci)] = hw
+
+        for loc in self.map.blocked:
+            if (loc[0], loc[1]) not in hws.keys(): continue
+            hw = hws[(loc[0], loc[1])]
+            self.canvas.create_line(*hw.corner(loc[2]), *hw.corner(loc[2]+1),
+                                    width=8, fill='red')
 
         # update info
         self.phaseLabelText.set("Phase %d" % (self.map.getPhase() + 1))
@@ -442,18 +472,20 @@ class MapWindow:
     def wheel(self, event):
         # Respond to Linux (event.num) or Windows (event.delta) wheel event
         ZOOMSTEP = 1.1
-        scale = 1
         if event.num == 5 or event.delta == -120:  # scroll down
-            scale /= ZOOMSTEP
+            self.zoom(1./ZOOMSTEP, event.x, event.y)
         if event.num == 4 or event.delta == 120:  # scroll up
-            scale *= ZOOMSTEP
+            self.zoom(ZOOMSTEP, event.x, event.y)
+
+    def zoom(self, scale, x, y):
         self.HEXSIZE *= scale
+        x, y = int(x), int(y)
 
         # the premise here is that canvasx/y is just doing a translation...
-        self.canvas.scan_mark(event.x, event.y)
+        self.canvas.scan_mark(x, y)
         delta = np.array((self.canvas.canvasx(0), self.canvas.canvasy(0)))
 
-        vorigscreen = np.array((event.x, event.y))
+        vorigscreen = np.array((x, y))
         vorigcanvas = vorigscreen + delta
         vzoomcanvas = vorigcanvas / scale
         vzoomscreen = vzoomcanvas - delta
@@ -464,7 +496,7 @@ class MapWindow:
     
     def click(self, event):
         delta = np.array((event.x, event.y)) - self.dragStart
-        if np.sum(delta**2) > self.HEXSIZE: return
+        if np.sum(delta**2) > self.HEXSIZE / 2: return
         
         r, c = self.pixelToHex(self.canvas.canvasx(event.x), self.canvas.canvasy(event.y))
 

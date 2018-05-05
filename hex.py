@@ -11,7 +11,8 @@ class Hex:
     def __init__(self, map,
                  key, type, connections=[],
                  label="", revenue=None, upgradeCost=0,
-                 upgradesTo=[], cities=[], towns=0, junctions=0,
+                 upgradesTo=[],
+                 cities=[], towns=0, junctions=0,
                  rotation = 0):
 
         self.row = 0
@@ -96,6 +97,27 @@ class Hex:
     def isCity(loc):
         return isinstance(loc, str) and 'c' in loc
     
+    # hexsides are really a single location; update them in the
+    # vertex dictionary to use the same object
+    @staticmethod
+    def canonicalize(loc):
+        # always use hexside 0,1,2 so there is a common name for
+        # each side of a hexside
+        if Hex.isHexside(loc[2]):
+            delta = {
+                0: (0, 0, 0),
+                1: (0, 0, 1),
+                2: (0, 0, 2),
+                3: (1, 0, 0),
+                4: (0, -1, 1),
+                5: (-1, 0, 2)
+                }[loc[2]]
+            res = [loc[0] + delta[0], loc[1] + delta[1], delta[2]]
+            if delta[0] != 0 and loc[0] % 2 == 0: res[1] -= 1
+            return tuple(res)
+        else:
+            return loc
+
     def isUpgrade(self, upgrade):
         return upgrade.type in [ hx.type for hx in self.upgradesTo ]
 
@@ -232,6 +254,8 @@ class Hex:
 
         def runsOffBoard(hx):
             for conn in hx.connections:
+                if self.map.isBlocked(self.row, self.col, conn[0]): return True
+                if self.map.isBlocked(self.row, self.col, conn[1]): return True
                 dst = Hex.step(r, c, conn[0])
                 if map.getHex(*dst[:2]) == None: return True
                 dst = Hex.step(r, c, conn[1])
@@ -397,7 +421,7 @@ class HexWindow:
         stops = {}
         stopsToDraw = self.hex.stops() + self.hex.junctions
         r = self.r / 3 if stopsToDraw >= 2 else 0
-        a = self.hex.rotation * math.pi / 3 - math.pi / 3
+        a = self.hex.rotation * math.pi / 3 # - math.pi / 3
 
         for c in range(len(self.hex.cities)):
             stops['c%d' % c] = self.center() + np.array((math.cos(a), math.sin(a))) * r
@@ -434,8 +458,8 @@ class HexWindow:
 
             def findSolutionConnection():
                 if self.hex.map.solution != None:
-                    canon0 = solver.MapSolver.canonicalize((self.hex.row, self.hex.col, conn[0]))
-                    canon1 = solver.MapSolver.canonicalize((self.hex.row, self.hex.col, conn[1]))
+                    canon0 = Hex.canonicalize((self.hex.row, self.hex.col, conn[0]))
+                    canon1 = Hex.canonicalize((self.hex.row, self.hex.col, conn[1]))
 
                     for ri, route in enumerate(self.hex.map.solution[1]):
                         if canon0 in route and canon1 in route:
