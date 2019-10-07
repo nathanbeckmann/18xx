@@ -47,9 +47,11 @@ class Map:
                         newRow.append("")
                 newMap.append(newRow)
             map = newMap
-                        
+                
         self.tiles = { k: v for k,v in obj["Tiles"].items() if "####" not in k }
-        self.companies = [[0]] * obj["Companies"]
+        self.companies = []
+        for ci, cname in enumerate(sorted(obj["Companies"].keys())):
+            self.companies += [ company.Company(ci, cname, obj["Companies"][cname]) ]
         self.trains = {}
         for phase, trains in obj["Trains"].items():
             for train in trains:
@@ -246,15 +248,15 @@ class Map:
     def updatePhase(self):
         self.state.phase = max([self.trains[t] \
                                 for c in self.companies \
-                                for t in c \
-                                if t in self.trains.keys()]) \
+                                for t in c.trains \
+                                if t in self.trains.keys()] + [1]) \
                            - 1
 
 import tkinter
         
 class MapWindow:
     PADDING = 20
-    HEXSIZE = 75
+    HEXSIZE = 25
     
     def __init__(self, map, hexsize=50):
         self.map = map
@@ -283,7 +285,7 @@ class MapWindow:
     def solve(self, ci):
         s = solver.MapSolver(self.map)
         solId = time.time()
-        self.map.solution = list(s.solve(company.Company(ci, self.map.companies[ci]))) + [solId]
+        self.map.solution = list(s.solve(self.map.companies[ci])) + [solId]
         self.redraw()
         self.root.after(10000, lambda solId=solId: self.clearSolution(solId))
 
@@ -341,13 +343,21 @@ class MapWindow:
 
     def updateTrains(self, companyIndex, trains):
         try:
-            self.map.companies[companyIndex] = [ int(t) for t in trains.split(',') ]
-            print ("Company %s has trains: %s" % (companyIndex, self.map.companies[companyIndex]))
+            c = self.map.companies[companyIndex]
+            c.trains = trains.split(',')
+            for ti in range(len(c.trains)):
+                if c.trains[ti] not in self.map.trains:
+                    c.trains[ti] = int(c.trains[ti])
+                if c.trains[ti] not in self.map.trains:
+                    c.trains = []
+                    raise Exception("invalid train!")
+            
+            print ("Company %s has trains: %s" % (companyIndex, self.map.companies[companyIndex].trains))
         except:
             pass
         
-        if self.map.companies[companyIndex] == []:
-            self.map.companies[companyIndex] = [0]
+        if self.map.companies[companyIndex].trains == []:
+            self.map.companies[companyIndex].trains = [0]
 
         oldPhase = self.map.getPhase()
         self.map.updatePhase()
@@ -397,7 +407,7 @@ class MapWindow:
         # label = tkinter.Label(companyFrame, text="Companies:", font=("", 16, "bold"))
         # label.pack() # (row=0,column=1,columnspan=2)
 
-        SIZE = 40
+        SIZE = 50
         COMPANIESPERROW = 12
 
         for ci, company in enumerate(self.map.companies):
@@ -405,12 +415,12 @@ class MapWindow:
             cf = tkinter.Frame(companyFrame)
 
             canvas = tkinter.Canvas(cf,width=SIZE,height=SIZE)
-            hex.HexWindow.drawStation(canvas,np.array([SIZE/2,SIZE/2]),SIZE/2,ci)
+            hex.HexWindow.drawStation(canvas,np.array([SIZE/2,SIZE/2]),SIZE/2,company)
             canvas.pack(side=tkinter.LEFT) # grid(row=1, column=2*ci)
             canvas.bind("<Button-1>", lambda event, ci=ci: self.solve(ci))
 
             content = tkinter.StringVar()
-            content.set(','.join([str(t) for t in company]))
+            content.set(','.join([str(t) for t in company.trains]))
             content.trace("w", lambda name, index, mode, ci=ci, content=content: self.updateTrains(ci, content.get()))
             text = tkinter.Entry(cf,textvariable=content, width=8) # width=16,height=1)
             text.pack(side=tkinter.LEFT)

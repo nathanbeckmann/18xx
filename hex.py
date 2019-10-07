@@ -13,7 +13,7 @@ class Hex:
                  label="", revenue=None, upgradeCost=0,
                  upgradesTo=[],
                  cities=[], towns=0, junctions=0,
-                 rotation = 0):
+                 rotation = 0, noRotate = False):
 
         self.row = 0
         self.col = 0
@@ -30,6 +30,7 @@ class Hex:
         self.towns = towns
         self.junctions = junctions
         self.rotation = rotation
+        self.noRotate = bool(noRotate)
 
         self.canonicalizeConnections()
 
@@ -169,27 +170,12 @@ class Hex:
             # has reduced, we need to find a valid mapping of stops
             # from the old tile to the new tile. the implementation is
             # simpler assuming only two stops on a tile.
-            assert self.stops() <= 2
             assert self.stops() >= hx.stops()
 
             selfstops  = [ "t%d" % d for d in range(self.towns) ]
             selfstops += [ "c%d" % d for d in range(len(self.cities)) ]
             hxstops  = [ "t%d" % d for d in range(hx.towns) ]
             hxstops += [ "c%d" % d for d in range(len(hx.cities)) ]
-
-            renames = []
-            # all permutations of old name to new name
-            def generate(indices):
-                nonlocal renames
-                if len(indices) == len(selfstops):
-                    rename = {}
-                    for i, j in enumerate(indices):
-                        rename[selfstops[i]] = hxstops[j]
-                    renames += [ rename ]
-                else:
-                    for i in range(len(hxstops)):
-                        generate(indices + [i])
-            generate([])
 
             def followJunctions(connections):
                 junctions = {}
@@ -219,6 +205,9 @@ class Hex:
             selfconnections = followJunctions(self.connections)
             hxconnections = followJunctions(hx.connections)
 
+            # print (self, self.connections, "==>", selfconnections)
+            # print (hx, hx.connections, "==>", hxconnections)
+
             def preservesConnectionsRenamed(hx, rename):
                 # under a given renaming of cities, the tile fails to
                 # preserve connections if _any_ connection fails.
@@ -237,9 +226,29 @@ class Hex:
                             break
 
                     if not matched:
+                        # print (curr, "did not match")
                         return False
             
                 return True
+
+            # first, try a naive renaming to short circuit cases with
+            # many stops where the trivial 1-to-1 is correct.
+            if selfstops == hxstops and preservesConnectionsRenamed(hx, { k: k for k in selfstops }):
+                return True
+
+            renames = []
+            # all permutations of old name to new name
+            def generate(indices):
+                nonlocal renames
+                if len(indices) == len(selfstops):
+                    rename = {}
+                    for i, j in enumerate(indices):
+                        rename[selfstops[i]] = hxstops[j]
+                    renames += [ rename ]
+                else:
+                    for i in range(len(hxstops)):
+                        generate(indices + [i])
+            generate([])
 
             # but overall, the tile succeeds in preserving connections
             # if _any_ renaming succeeds
@@ -262,19 +271,27 @@ class Hex:
                 if map.getHex(*dst[:2]) == None: return True
             return False
 
+        # print (self.upgradesTo)
+
         upgrades = []
         for u in self.upgradesTo:
             rotations = []
-            for rot in range(6):
+            for rot in [0] if u.noRotate else range(6):
                 hx = copy.deepcopy(u)
                 hx.rotate(rot)
 
+                # print (u, rot)
+                
                 valid = True
                 valid = valid and preservesConnections(hx)
+                # print ("Preserves", valid)
                 valid = valid and self.map.getNumTilesAvailable(u.key) > 0
+                # print ("Available", valid)
                 valid = valid and not any([ equivalentConnections(hx, x) for x in rotations ])
+                # print ("Redundant", valid)
                 valid = valid and not runsOffBoard(hx)
-                
+                # print ("Off-board", valid)
+
                 if valid:
                     rotations += [hx]
             if len(rotations) > 0:
@@ -354,34 +371,20 @@ class HexWindow:
             print (type)
             assert False
 
-    def getCityColor(city):
-        primaryColors = [ '#444444', 'red', 'green', 'blue', 'cyan', 'yellow' ]
-        secondaryColors = primaryColors + [ 'white' ]
-
-        pairedColors = [ (primaryColors[p], secondaryColors[s]) \
-                          for p in range(len(primaryColors)) \
-                          for s in range(len(secondaryColors)) \
-                          if p != s ]
-
-        if city == None:
-            return ['white']
-        elif city < len(primaryColors):
-            return [primaryColors[city]]
-        elif city < len(primaryColors) * len(secondaryColors):
-            return pairedColors[city - len(primaryColors)]
-        else:
-            assert False
-        
     def drawCircle(canvas, p, r, c, o, w=1, **kwargs):
         tl = p - (r/2, r/2)
         br = p + (r/2, r/2)
-        canvas.create_oval(*flatten([tl, br]), fill=c, outline=o, width=w, **kwargs)
+        id = canvas.create_oval(*flatten([tl, br]), fill=c, outline=o, width=w, **kwargs)
 
-    def drawStation(canvas, p, r, city, **kwargs):
-        colors = HexWindow.getCityColor(city)
+    def drawStation(canvas, p, r, company, renderName=True, **kwargs):
+        colors = company.colors if company != None else ["white"]
         HexWindow.drawCircle(canvas, p, r, c=colors[0], o='black', w=1)
         for c in colors[1:]:
             HexWindow.drawCircle(canvas, p, r/len(colors), c='', o=c, w=r/len(colors)/3)
+
+        renderName = renderName or (company != None and company.colors == ["white"] and len(company.name) <= 2)
+        if renderName and company != None:
+            canvas.create_text(*p, text=company.name, fill='black', font=("Helvetica", 14, "bold"), anchor=tkinter.CENTER)
 
     def drawCity(self, canvas, p, r, stop, **kwargs):
         cidx = int(stop[1:])
@@ -407,7 +410,8 @@ class HexWindow:
             station[1] += r * int(c / 2)
 
             company = self.hex.cities[cidx][c]
-            HexWindow.drawStation(canvas, station, r, company)
+            if company != None: company = self.hex.map.companies[company]
+            HexWindow.drawStation(canvas, station, r, company, renderName=False)
 
     def draw(self, canvas):
         if self.hex == None: return
@@ -421,7 +425,7 @@ class HexWindow:
         stops = {}
         stopsToDraw = self.hex.stops() + self.hex.junctions
         r = self.r / 3 if stopsToDraw >= 2 else 0
-        a = self.hex.rotation * math.pi / 3 # - math.pi / 3
+        a = self.hex.rotation * math.pi / 3 + math.pi / 6
 
         for c in range(len(self.hex.cities)):
             stops['c%d' % c] = self.center() + np.array((math.cos(a), math.sin(a))) * r
@@ -476,7 +480,7 @@ class HexWindow:
             canvas.create_line(*flatline, fill=color, width=self.r / 10)
 
         # unconnected cities and towns
-        cityrad = self.r/2
+        cityrad = self.r/2.5
         townrad = self.r/4
         
         for stop, location in stops.items():

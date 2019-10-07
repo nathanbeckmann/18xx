@@ -83,7 +83,7 @@ class UpgradeWindow:
 
     def upgradeCityWindow(self, ci):
         print ("Updating city:", ci)
-        self.cityRoot = tkinter.Toplevel(self.mapWindow.frame)
+        self.cityRoot = tkinter.Toplevel(self.mapWindow.root)
         self.cityRoot.wm_title("Update city stations")
         # TODO: this should maybe be a cityroot.destroy instead of
         # self.close
@@ -110,16 +110,16 @@ class UpgradeWindow:
             canvas.bind("<Button-1>", lambda event, ci=ci, si=si: self.upgradeCity(ci,si,None))
 
             # Company options
-            for company in range(len(self.map.companies)):
+            for company in self.map.companies:
                 canvas = tkinter.Canvas(self.cityFrame,
                                         width=SIZE,
                                         height=SIZE)
 
                 hex.HexWindow.drawStation(canvas,np.array([SIZE/2,SIZE/2]),SIZE/2,company)
                 
-                canvas.grid(row=si * nrows + int((company+1) / MAX_COMPANIES_PER_ROW),
-                            column=(company+1) % MAX_COMPANIES_PER_ROW)
-                canvas.bind("<Button-1>", lambda event, ci=ci, si=si, company=company: self.upgradeCity(ci,si,company))
+                canvas.grid(row=si * nrows + int((company.id+1) / MAX_COMPANIES_PER_ROW),
+                            column=(company.id+1) % MAX_COMPANIES_PER_ROW)
+                canvas.bind("<Button-1>", lambda event, ci=ci, si=si, company=company.id: self.upgradeCity(ci,si,company))
             
         self.cityRoot.mainloop()
 
